@@ -18,3 +18,33 @@ export class EtherpadServerError extends GraaspEtherpadError {
     );
   }
 }
+
+export class ItemNotFoundError extends GraaspEtherpadError {
+  constructor(data?: unknown) {
+    super({
+      code: 'GPEPERR002',
+      statusCode: StatusCodes.BAD_REQUEST,
+      message: 'Item not found',
+    });
+  }
+}
+
+export class ItemMissingExtraError extends GraaspEtherpadError {
+  constructor(data?: unknown) {
+    super({
+      code: 'GPEPERR003',
+      statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+      message: 'Item missing etherpad extra',
+    });
+  }
+}
+
+export class AccessForbiddenError extends GraaspEtherpadError {
+  constructor(data?: unknown) {
+    super({
+      code: 'GPEPERR004',
+      statusCode: StatusCodes.FORBIDDEN,
+      message: 'Access forbidden to this item',
+    });
+  }
+}
