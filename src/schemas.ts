@@ -15,3 +15,23 @@ export const createEtherpad = {
     additionalProperties: false,
   },
 };
+
+export const getEtherpadFromItem = {
+  querystring: {
+    mode: {
+      type: 'string',
+      enum: ['read', 'write'],
+    },
+    additionalProperties: false,
+  },
+  body: {
+    params: {
+      type: 'object',
+      properties: {
+        itemId: { $ref: 'http://graasp.org/#/definitions/uuid' },
+      },
+      required: ['itemId'],
+      additionalProperties: false,
+    },
+  },
+};

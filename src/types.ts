@@ -11,6 +11,5 @@ export interface EtherpadExtra extends UnknownExtra {
   etherpad: {
     padID: string;
     groupID: string;
-    padName: string;
   };
 }

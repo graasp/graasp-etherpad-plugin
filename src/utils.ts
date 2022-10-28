@@ -21,8 +21,8 @@ export function validatePluginOptions(options: EtherpadPluginOptions) {
  * @param object
  */
 export function wrapErrors<T extends Object>(object: T, transformer: (e: unknown) => Error): T {
-  const generator = new Proxy(object, {
-    get: (target: Object, prop: keyof Object) => {
+  const generator = new Proxy<T>(object, {
+    get: (target: T, prop: keyof Object) => {
       if (typeof target[prop] === 'function') {
         return new Proxy(target[prop], {
           apply: async (...args) => {
@@ -37,10 +37,10 @@ export function wrapErrors<T extends Object>(object: T, transformer: (e: unknown
         return target[prop];
       }
     },
-  }) as T;
+  });
 
   // Object.assign will trigger the property getters from the generator
-  return Object.assign({}, generator) as T;
+  return Object.assign({}, generator);
 }
 
 /**
@@ -49,6 +49,16 @@ export function wrapErrors<T extends Object>(object: T, transformer: (e: unknown
  */
 export function buildPadID({ groupID, padName }: { groupID: string; padName: string }) {
   return `${groupID}$${padName}`;
+}
+
+/**
+ * Builds an Etherpad path to the given pad
+ * https://etherpad.org/doc/v1.8.18/#index_embed-parameters
+ * @param baseUrl if specified, will return the absolute url to the pad, otherwise the relative path will be given
+ */
+export function buildPadPath({ padID }: { padID: string }, baseUrl?: string) {
+  const path = `/p/${padID}`;
+  return baseUrl ? new URL(path, baseUrl).toString() : path;
 }
 
 /**
@@ -64,9 +74,7 @@ export function buildEtherpadExtra({
   return {
     etherpad: {
       padID: buildPadID({ groupID, padName }),
-      // these properties are duplicated to later create associated sessions
       groupID,
-      padName,
     },
   };
 }
