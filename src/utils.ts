@@ -14,33 +14,10 @@ export function validatePluginOptions(options: EtherpadPluginOptions) {
   if (!apiKey) {
     throw new Error('Etherpad API key environment variable is not defined!');
   }
-}
 
-/**
- * Wraps an object's async method calls with error handling supplied by a transformer
- * @param object
- */
-export function wrapErrors<T extends Object>(object: T, transformer: (e: unknown) => Error): T {
-  const generator = new Proxy<T>(object, {
-    get: (target: T, prop: keyof Object) => {
-      if (typeof target[prop] === 'function') {
-        return new Proxy(target[prop], {
-          apply: async (...args) => {
-            try {
-              return await Reflect.apply(...args);
-            } catch (error) {
-              throw transformer(error);
-            }
-          },
-        });
-      } else {
-        return target[prop];
-      }
-    },
-  });
-
-  // Object.assign will trigger the property getters from the generator
-  return Object.assign({}, generator);
+  if (!apiKey.match(/^[a-f\d]{64}$/)) {
+    throw new Error('Etherpad API key environment variable format must be /^[a-fd]{64}$/');
+  }
 }
 
 /**
