@@ -3,11 +3,11 @@ import { v4 } from 'uuid';
 
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 
-import Etherpad from '@graasp/etherpad-api';
 import { Item, ItemType, PermissionLevel, PermissionLevelCompare } from '@graasp/sdk';
 
 import { ETHERPAD_API_VERSION } from './constants';
 import { AccessForbiddenError, ItemMissingExtraError, ItemNotFoundError } from './errors';
+import { GraaspEtherpad } from './etherpad';
 import { createEtherpad, getEtherpadFromItem } from './schemas';
 import { EtherpadExtra, EtherpadPluginOptions } from './types';
 import { buildEtherpadExtra, buildPadID, buildPadPath, validatePluginOptions } from './utils';
@@ -25,7 +25,7 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
   const domain = new URL(etherpadUrl).hostname;
 
   // connect to etherpad server
-  const etherpad = new Etherpad({
+  const etherpad = new GraaspEtherpad({
     url: etherpadUrl,
     apiKey,
     apiVersion: ETHERPAD_API_VERSION,
