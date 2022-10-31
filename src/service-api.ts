@@ -6,21 +6,11 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import Etherpad from '@graasp/etherpad-api';
 import { Item, ItemType, PermissionLevel, PermissionLevelCompare } from '@graasp/sdk';
 
-import {
-  AccessForbiddenError,
-  EtherpadServerError,
-  ItemMissingExtraError,
-  ItemNotFoundError,
-} from './errors';
+import { ETHERPAD_API_VERSION } from './constants';
+import { AccessForbiddenError, ItemMissingExtraError, ItemNotFoundError } from './errors';
 import { createEtherpad, getEtherpadFromItem } from './schemas';
 import { EtherpadExtra, EtherpadPluginOptions } from './types';
-import {
-  buildEtherpadExtra,
-  buildPadID,
-  buildPadPath,
-  validatePluginOptions,
-  wrapErrors,
-} from './utils';
+import { buildEtherpadExtra, buildPadID, buildPadPath, validatePluginOptions } from './utils';
 
 const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, options) => {
   // get services from server instance
@@ -35,13 +25,11 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
   const domain = new URL(etherpadUrl).hostname;
 
   // connect to etherpad server
-  const etherpad = wrapErrors(
-    new Etherpad({
-      url: etherpadUrl,
-      apiKey,
-    }),
-    (error) => new EtherpadServerError(error),
-  );
+  const etherpad = new Etherpad({
+    url: etherpadUrl,
+    apiKey,
+    apiVersion: ETHERPAD_API_VERSION,
+  });
 
   /**
    * Helper method to create a pad

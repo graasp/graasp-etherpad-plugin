@@ -3,10 +3,11 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import Etherpad from '@graasp/etherpad-api';
 import { Item } from '@graasp/sdk';
 
-import { EtherpadServerError, ItemMissingExtraError, ItemNotFoundError } from './errors';
+import { ETHERPAD_API_VERSION } from './constants';
+import { ItemMissingExtraError, ItemNotFoundError } from './errors';
 import { getEtherpadFromItem } from './schemas';
 import { EtherpadExtra, EtherpadPluginOptions } from './types';
-import { buildPadPath, validatePluginOptions, wrapErrors } from './utils';
+import { buildPadPath, validatePluginOptions } from './utils';
 
 const publicPlugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, options) => {
   const { public: publicPlugin, taskRunner } = fastify;
@@ -24,13 +25,11 @@ const publicPlugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, 
   } = publicPlugin;
 
   // connect to etherpad server
-  const etherpad = wrapErrors(
-    new Etherpad({
-      url: etherpadUrl,
-      apiKey,
-    }),
-    (error) => new EtherpadServerError(error),
-  );
+  const etherpad = new Etherpad({
+    url: etherpadUrl,
+    apiKey,
+    apiVersion: ETHERPAD_API_VERSION,
+  });
 
   // create a route prefix for etherpad
   fastify.register(
