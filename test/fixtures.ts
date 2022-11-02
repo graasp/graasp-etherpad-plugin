@@ -14,6 +14,12 @@ import {
   UnknownExtra,
 } from '@graasp/sdk';
 
+export const MOCK_GROUP_ID = 'g.s8oes9dhwrvt0zif';
+export const MOCK_PAD_READ_ONLY_ID = 'r.s8oes9dhwrvt0zif';
+export const MOCK_PAD_ID = 'g.s8oes9dhwrvt0zif$mock-pad-name';
+export const MOCK_AUTHOR_ID = 'a.s8oes9dhwrvt0zif';
+export const MOCK_SESSION_ID = 's.s8oes9dhwrvt0zif';
+
 export const MOCK_MEMBER: Member = {
   name: 'mock-name',
   email: 'mock-email',
@@ -40,7 +46,12 @@ export const MOCK_ITEM: Item<UnknownExtra> = {
   description: 'mock-description',
   type: ItemType.ETHERPAD,
   path: 'mock-path',
-  extra: {},
+  extra: {
+    etherpad: {
+      padID: MOCK_PAD_ID,
+      groupID: MOCK_GROUP_ID,
+    },
+  },
   creator: 'mock-creator',
   createdAt: 'mock-created-at',
   updatedAt: 'mock-updated-at',

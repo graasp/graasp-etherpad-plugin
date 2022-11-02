@@ -1153,6 +1153,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@fastify/cookie@npm:^6.0.0":
+  version: 6.0.0
+  resolution: "@fastify/cookie@npm:6.0.0"
+  dependencies:
+    cookie-signature: ^1.1.0
+    fastify-plugin: ^3.0.1
+  checksum: 56146dd26b2639364d5d22372bf2de06d8aa78aab852251ad1a0344a409a37d7e8e14ca7d60d19bbc09dba240869f20a9c062c21f3325c12eb6161e4ca9df9e7
+  languageName: node
+  linkType: hard
+
 "@fastify/cookie@npm:^7.0.0":
   version: 7.4.0
   resolution: "@fastify/cookie@npm:7.4.0"
@@ -2939,6 +2949,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"cookie-signature@npm:^1.1.0":
+  version: 1.2.0
+  resolution: "cookie-signature@npm:1.2.0"
+  checksum: d11f56f909733695d989511bf0e1dd874220d818b9d118945dce3c275fa50adfb3f6984354de0f5eefdc9347951a22ba3545230a762576019d23c16055b12d4c
+  languageName: node
+  linkType: hard
+
 "cookie@npm:^0.5.0":
   version: 0.5.0
   resolution: "cookie@npm:0.5.0"
@@ -3615,7 +3632,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fastify-plugin@npm:^3.0.0":
+"fastify-plugin@npm:^3.0.0, fastify-plugin@npm:^3.0.1":
   version: 3.0.1
   resolution: "fastify-plugin@npm:3.0.1"
   checksum: 131ba0a388f777829c3fb0fd5b75cf057688ce6d0ca354fb1ebf829767a8c853b0825762b9185b5200097454df0ede2f3095da2efe1aa1b3736d07f194e6d374
@@ -4039,6 +4056,7 @@ __metadata:
   dependencies:
     "@commitlint/cli": ^13.1.0
     "@commitlint/config-conventional": ^13.1.0
+    "@fastify/cookie": ^6.0.0
     "@graasp/etherpad-api": "github:graasp/etherpad-api"
     "@graasp/sdk": "github:graasp/graasp-sdk#53-etherpad"
     "@trivago/prettier-plugin-sort-imports": 3.2.0
