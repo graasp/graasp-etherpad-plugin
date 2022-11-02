@@ -3,10 +3,10 @@ import { v4 } from 'uuid';
 
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 
-import { Item, ItemType, PermissionLevel, PermissionLevelCompare } from '@graasp/sdk';
+import { Item, ItemType, PermissionLevel } from '@graasp/sdk';
 
 import { ETHERPAD_API_VERSION } from './constants';
-import { AccessForbiddenError, ItemMissingExtraError, ItemNotFoundError } from './errors';
+import { ItemMissingExtraError, ItemNotFoundError } from './errors';
 import { GraaspEtherpad } from './etherpad';
 import { createEtherpad, getEtherpadFromItem } from './schemas';
 import { EtherpadExtra, EtherpadPluginOptions } from './types';
@@ -122,55 +122,48 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
             throw new ItemMissingExtraError(item);
           }
 
-          const getMembership = itemMembershipTaskManager.createGetMemberItemMembershipTask(member);
-          const membership = await taskRunner.runSingle(getMembership);
-
-          if (!membership) {
-            throw new AccessForbiddenError(item);
-          }
+          const getMembership = itemMembershipTaskManager.createGetMemberItemMembershipTask(
+            member,
+            {
+              item,
+              validatePermission: mode === 'write' ? PermissionLevel.Write : PermissionLevel.Read,
+            },
+          );
+          await taskRunner.runSingle(getMembership);
 
           const { padID, groupID } = item.extra.etherpad;
 
           switch (mode) {
             case 'read': {
-              // user has at least read access and requested read, show read-only pad
-              if (PermissionLevelCompare.gte(membership.permission, PermissionLevel.Read)) {
-                const { readOnlyID } = await etherpad.getReadOnlyID({ padID });
-                return { padUrl: buildPadPath({ padID: readOnlyID }, etherpadUrl) };
-              }
+              const { readOnlyID } = await etherpad.getReadOnlyID({ padID });
+              return { padUrl: buildPadPath({ padID: readOnlyID }, etherpadUrl) };
             }
             case 'write': {
-              // user has edit rights and requested editor
-              if (PermissionLevelCompare.gte(membership.permission, PermissionLevel.Write)) {
-                // map user to etherpad author
-                const { authorID } = await etherpad.createAuthorIfNotExistsFor({
-                  authorMapper: member.id,
-                  name: member.name,
-                });
+              // map user to etherpad author
+              const { authorID } = await etherpad.createAuthorIfNotExistsFor({
+                authorMapper: member.id,
+                name: member.name,
+              });
 
-                // start session for user on the group
-                const expiration = DateTime.now().plus({ days: 1 });
-                const { sessionID } = await etherpad.createSession({
-                  authorID,
-                  groupID,
-                  validUntil: expiration.toMillis(),
-                });
+              // start session for user on the group
+              const expiration = DateTime.now().plus({ days: 1 });
+              const { sessionID } = await etherpad.createSession({
+                authorID,
+                groupID,
+                validUntil: expiration.toMillis(),
+              });
 
-                // set cookie
-                reply.setCookie('sessionID', sessionID, {
-                  domain,
-                  path: buildPadPath({ padID }),
-                  signed: true,
-                  httpOnly: true,
-                });
+              // set cookie
+              reply.setCookie('sessionID', sessionID, {
+                domain,
+                path: buildPadPath({ padID }),
+                signed: true,
+                httpOnly: true,
+              });
 
-                return { padUrl: buildPadPath({ padID }, etherpadUrl) };
-              }
+              return { padUrl: buildPadPath({ padID }, etherpadUrl) };
             }
           }
-
-          // this should never be reached; defensively throw just in case
-          throw new AccessForbiddenError(item);
         },
       );
 
