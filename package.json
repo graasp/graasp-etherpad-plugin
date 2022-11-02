@@ -28,6 +28,7 @@
     "fastify": "3.29.1"
   },
   "dependencies": {
+    "@fastify/cookie": "^6.0.0",
     "@graasp/etherpad-api": "github:graasp/etherpad-api",
     "@types/luxon": "3.0.2",
     "http-status-codes": "2.2.0",

@@ -1,5 +1,6 @@
 import { createMock } from 'ts-auto-mock';
 
+import fastifyCookie from '@fastify/cookie';
 import fastify, { FastifyLoggerInstance } from 'fastify';
 
 import {
@@ -21,6 +22,8 @@ export type BuildAppType = Awaited<ReturnType<typeof buildApp>>;
 export async function buildApp(args: { options: EtherpadPluginOptions }) {
   const app = fastify();
 
+  app.register(fastifyCookie);
+
   const itemTaskManager = createMock<ItemTaskManager>();
   const itemMembershipTaskManager = createMock<ItemMembershipTaskManager>();
   const taskRunner = createMock<TaskRunner<Actor>>();
@@ -30,7 +33,9 @@ export async function buildApp(args: { options: EtherpadPluginOptions }) {
   app.decorate('items', { taskManager: itemTaskManager });
   app.decorate('itemMemberships', { taskManager: itemMembershipTaskManager });
   app.decorate('taskRunner', taskRunner);
-  app.addHook('onRequest', async (request) => (request.member = MOCK_MEMBER));
+  app.addHook('onRequest', async (request, reply) => {
+    request.member = MOCK_MEMBER;
+  });
 
   // uuid schema referenced from h5pImport schema should be registered by core
   // we use a simple string schema instead
@@ -64,7 +69,7 @@ export async function buildApp(args: { options: EtherpadPluginOptions }) {
 
   const runSingle = jest
     .spyOn(taskRunner, 'runSingle')
-    .mockImplementation((task) => task.run(dbTrxHandler, logger));
+    .mockImplementation((task) => (task.run(dbTrxHandler, logger), Promise.resolve(task.result)));
 
   const runSingleSequence = jest
     .spyOn(taskRunner, 'runSingleSequence')

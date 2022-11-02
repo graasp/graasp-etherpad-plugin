@@ -23,7 +23,7 @@ export class ItemNotFoundError extends GraaspEtherpadError {
   constructor(data?: unknown) {
     super({
       code: 'GPEPERR002',
-      statusCode: StatusCodes.BAD_REQUEST,
+      statusCode: StatusCodes.NOT_FOUND,
       message: 'Item not found',
     });
   }

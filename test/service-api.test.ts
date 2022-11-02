@@ -1,14 +1,22 @@
 import { StatusCodes } from 'http-status-codes';
 import nock from 'nock';
 
-import { HttpMethod, TaskStatus } from '@graasp/sdk';
+import { Author, Group, PadReadOnly, Session } from '@graasp/etherpad-api';
+import { HttpMethod, Item, TaskStatus } from '@graasp/sdk';
 
 import { ETHERPAD_API_VERSION } from '../src/constants';
 import { BuildAppType, buildApp } from './app';
 import { TEST_ENV } from './config';
-import { MOCK_ITEM, mockTask } from './fixtures';
-
-const MOCK_GROUP_ID = 'g.s8oes9dhwrvt0zif';
+import {
+  MOCK_AUTHOR_ID,
+  MOCK_GROUP_ID,
+  MOCK_ITEM,
+  MOCK_MEMBER,
+  MOCK_PAD_ID,
+  MOCK_PAD_READ_ONLY_ID,
+  MOCK_SESSION_ID,
+  mockTask,
+} from './fixtures';
 
 type EtherpadApiResponse<T> = [
   statusCode: number,
@@ -16,9 +24,12 @@ type EtherpadApiResponse<T> = [
 ];
 
 type Api = {
-  createGroupIfNotExistsFor?: EtherpadApiResponse<{ groupID: string }>;
+  createGroupIfNotExistsFor?: EtherpadApiResponse<Group>;
   createGroupPad?: EtherpadApiResponse<null>;
   deletePad?: EtherpadApiResponse<null>;
+  getReadOnlyID?: EtherpadApiResponse<PadReadOnly | null>;
+  createAuthorIfNotExistsFor?: EtherpadApiResponse<Author>;
+  createSession?: EtherpadApiResponse<Session | null>;
 };
 
 /**
@@ -52,6 +63,10 @@ describe('Service API', () => {
 
   beforeAll(async () => {
     instance = await buildApp({ options: TEST_ENV });
+  });
+
+  afterEach(() => {
+    nock.cleanAll();
   });
 
   describe('create a pad', () => {
@@ -102,6 +117,7 @@ describe('Service API', () => {
         createGroupPad: [StatusCodes.GATEWAY_TIMEOUT],
       });
       const res = await app.inject(payloadCreate);
+
       expect(res.statusCode).toEqual(StatusCodes.INTERNAL_SERVER_ERROR);
       expect(res.json()).toMatchObject({
         code: 'GPEPERR001',
@@ -123,6 +139,7 @@ describe('Service API', () => {
         ],
       });
       const res = await app.inject(payloadCreate);
+
       expect(res.statusCode).toEqual(StatusCodes.INTERNAL_SERVER_ERROR);
       expect(res.json()).toMatchObject({
         code: 'GPEPERR001',
@@ -144,6 +161,7 @@ describe('Service API', () => {
         ],
       });
       const res = await app.inject(payloadCreate);
+
       expect(res.statusCode).toEqual(StatusCodes.INTERNAL_SERVER_ERROR);
       expect(res.json()).toMatchObject({
         code: 'GPEPERR001',
@@ -169,8 +187,8 @@ describe('Service API', () => {
           throw new Error('mock failure');
         }),
       ]);
-
       const res = await app.inject(payloadCreate);
+
       expect(res.statusCode).toEqual(StatusCodes.INTERNAL_SERVER_ERROR);
       expect(res.json()).toEqual({
         error: 'Internal Server Error',
@@ -183,5 +201,147 @@ describe('Service API', () => {
     });
   });
 
-  describe('view a pad', () => {});
+  describe('view a pad', () => {
+    const payloadView = (mode: 'read' | 'write') => ({
+      method: HttpMethod.GET,
+      url: '/etherpad/view/mock-item-id',
+      query: {
+        mode,
+      },
+    });
+
+    it('views a pad in read mode successfully', async () => {
+      const { app } = instance;
+      const reqParams = setUpApi({
+        getReadOnlyID: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { readOnlyID: MOCK_PAD_READ_ONLY_ID } },
+        ],
+      });
+      const res = await app.inject(payloadView('read'));
+
+      const { getReadOnlyID } = await reqParams;
+      expect(getReadOnlyID?.get('padID')).toEqual(MOCK_PAD_ID);
+      expect(res.statusCode).toEqual(StatusCodes.OK);
+      expect(res.json()).toEqual({
+        padUrl: `${TEST_ENV.url}/p/${MOCK_PAD_READ_ONLY_ID}`,
+      });
+    });
+
+    it('views a pad in write mode successfully', async () => {
+      const { app } = instance;
+      const reqParams = setUpApi({
+        createAuthorIfNotExistsFor: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { authorID: MOCK_AUTHOR_ID } },
+        ],
+        createSession: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { sessionID: MOCK_SESSION_ID } },
+        ],
+      });
+      const res = await app.inject(payloadView('write'));
+
+      const { createAuthorIfNotExistsFor, createSession } = await reqParams;
+      expect(createAuthorIfNotExistsFor?.get('authorMapper')).toEqual(MOCK_MEMBER.id);
+      expect(createAuthorIfNotExistsFor?.get('name')).toEqual(MOCK_MEMBER.name);
+      expect(createSession?.get('groupID')).toEqual(MOCK_GROUP_ID);
+      expect(createSession?.get('authorID')).toEqual(MOCK_AUTHOR_ID);
+      expect(createSession?.get('validUntil')).toBeDefined();
+      expect(res.statusCode).toEqual(StatusCodes.OK);
+      expect(res.json()).toEqual({
+        padUrl: `${TEST_ENV.url}/p/${MOCK_GROUP_ID}$mock-pad-name`,
+      });
+      const mockSessionIdRegex = MOCK_SESSION_ID.replace('.', '\\.');
+      const mockPadIdRegex = MOCK_PAD_ID.replace('.', '\\.').replace('$', '\\$');
+      const cookieRegex = new RegExp(
+        `^sessionID=${mockSessionIdRegex}.*; Domain=localhost; Path=\/p\/${mockPadIdRegex}; HttpOnly$`,
+      );
+      expect(res.headers['set-cookie']).toMatch(cookieRegex);
+    });
+
+    it('returns error if item is not found', async () => {
+      const { app, spies } = instance;
+      setUpApi({
+        getReadOnlyID: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { readOnlyID: MOCK_PAD_READ_ONLY_ID } },
+        ],
+      });
+      spies.getItem.mockImplementationOnce((actor, itemId) =>
+        mockTask('mock-empty-task', actor, null as unknown as Item),
+      );
+      const res = await app.inject(payloadView('read'));
+
+      expect(res.statusCode).toEqual(StatusCodes.NOT_FOUND);
+      expect(res.json()).toEqual({
+        code: 'GPEPERR002',
+        message: 'Item not found',
+        origin: 'graasp-plugin-etherpad',
+        statusCode: 404,
+      });
+    });
+
+    it('returns error if item is missing etherpad extra', async () => {
+      const { app, spies } = instance;
+      setUpApi({
+        getReadOnlyID: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { readOnlyID: MOCK_PAD_READ_ONLY_ID } },
+        ],
+      });
+      spies.getItem.mockImplementationOnce((actor, itemId) =>
+        mockTask('mock-empty-task', actor, { ...MOCK_ITEM, extra: {} }),
+      );
+      const res = await app.inject(payloadView('read'));
+
+      expect(res.statusCode).toEqual(StatusCodes.INTERNAL_SERVER_ERROR);
+      expect(res.json()).toEqual({
+        code: 'GPEPERR003',
+        message: 'Item missing etherpad extra',
+        origin: 'graasp-plugin-etherpad',
+        statusCode: 500,
+      });
+    });
+
+    it('returns error on etherpad HTTP error', async () => {
+      const { app } = instance;
+      setUpApi({
+        getReadOnlyID: [StatusCodes.GATEWAY_TIMEOUT],
+      });
+      const res = await app.inject({
+        method: HttpMethod.GET,
+        url: '/etherpad/view/mock-item-id',
+        query: {
+          mode: 'read',
+        },
+      });
+      expect(res.statusCode).toEqual(StatusCodes.INTERNAL_SERVER_ERROR);
+      expect(res.json()).toMatchObject({
+        code: 'GPEPERR001',
+        message: 'Internal Etherpad server error',
+        origin: 'graasp-plugin-etherpad',
+      });
+    });
+
+    it('returns error on etherpad server error: padID does not exist', async () => {
+      const { app } = instance;
+      setUpApi({
+        getReadOnlyID: [StatusCodes.OK, { code: 1, message: 'padID does not exist', data: null }],
+      });
+      const res = await app.inject({
+        method: HttpMethod.GET,
+        url: '/etherpad/view/mock-item-id',
+        query: {
+          mode: 'read',
+        },
+      });
+      expect(res.statusCode).toEqual(StatusCodes.INTERNAL_SERVER_ERROR);
+      expect(res.json()).toMatchObject({
+        code: 'GPEPERR001',
+        message: 'Internal Etherpad server error',
+        origin: 'graasp-plugin-etherpad',
+      });
+    });
+  });
 });
