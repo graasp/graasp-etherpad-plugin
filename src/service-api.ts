@@ -6,7 +6,7 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { Item, ItemType, PermissionLevel } from '@graasp/sdk';
 
 import { ETHERPAD_API_VERSION } from './constants';
-import { ItemMissingExtraError, ItemNotFoundError } from './errors';
+import { AccessForbiddenError, ItemMissingExtraError, ItemNotFoundError } from './errors';
 import { GraaspEtherpad } from './etherpad';
 import { createEtherpad, getEtherpadFromItem } from './schemas';
 import { EtherpadExtra, EtherpadPluginOptions } from './types';
@@ -129,7 +129,11 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
               validatePermission: mode === 'write' ? PermissionLevel.Write : PermissionLevel.Read,
             },
           );
-          await taskRunner.runSingle(getMembership);
+          try {
+            await taskRunner.runSingle(getMembership);
+          } catch (error) {
+            throw new AccessForbiddenError(error);
+          }
 
           const { padID, groupID } = item.extra.etherpad;
 
@@ -177,6 +181,7 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
           if (item.type !== ItemType.ETHERPAD) {
             return;
           }
+
           const { padID } = item.extra.etherpad;
           etherpad.deletePad({ padID });
         },

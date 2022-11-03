@@ -14,12 +14,19 @@ import {
 } from '@graasp/sdk';
 
 import plugin, { EtherpadPluginOptions } from '../src/';
-import { MOCK_ITEM, MOCK_MEMBER, MOCK_MEMBERSHIP, mockTask } from './fixtures';
+import {
+  COPY_ITEM_TASK_NAME,
+  DELETE_ITEM_TASK_NAME,
+  MOCK_ITEM,
+  MOCK_MEMBER,
+  MOCK_MEMBERSHIP,
+  mockTask,
+} from './fixtures';
 
 type Awaited<T> = T extends PromiseLike<infer U> ? U : T;
 export type BuildAppType = Awaited<ReturnType<typeof buildApp>>;
 
-export async function buildApp(args: { options: EtherpadPluginOptions }) {
+export async function buildApp(args?: { options?: EtherpadPluginOptions }) {
   const app = fastify();
 
   app.register(fastifyCookie);
@@ -48,6 +55,8 @@ export async function buildApp(args: { options: EtherpadPluginOptions }) {
   });
 
   // mock core services and create spies on these
+  jest.spyOn(itemTaskManager, 'getDeleteTaskName').mockImplementation(() => DELETE_ITEM_TASK_NAME);
+  jest.spyOn(itemTaskManager, 'getCopyTaskName').mockImplementation(() => COPY_ITEM_TASK_NAME);
 
   const createItem = jest
     .spyOn(itemTaskManager, 'createCreateTaskSequence')
@@ -85,7 +94,7 @@ export async function buildApp(args: { options: EtherpadPluginOptions }) {
 
   const setTaskPostHookHandler = jest.spyOn(taskRunner, 'setTaskPostHookHandler');
 
-  await app.register(plugin, args.options);
+  if (args?.options) await app.register(plugin, args.options);
 
   return {
     app,

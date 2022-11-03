@@ -1202,7 +1202,7 @@ __metadata:
 
 "@graasp/etherpad-api@github:graasp/etherpad-api":
   version: 2.0.0
-  resolution: "@graasp/etherpad-api@https://github.com/graasp/etherpad-api.git#commit=e244724cb277d33509d8fc31929b7ac5580a44d6"
+  resolution: "@graasp/etherpad-api@https://github.com/graasp/etherpad-api.git#commit=eb8e4c3bbc0ff5b96509b5c96beff30a0cc49976"
   dependencies:
     "@types/http-errors": ^1.6.1
     "@types/is-url": ^1.2.28
@@ -1212,7 +1212,7 @@ __metadata:
     is-url: ^1.2.4
     request: ^2.88.0
     request-promise-native: ^1.0.5
-  checksum: c60540cd9b35497ea9ce6de8b275d5d22f74525dfbfbea5eb5571277566898db77473804873d05f0220f4efb8f3d1977c72df0ec1f041f370ce45c52b659f0fb
+  checksum: cf968ce9783897324941bfe0641373ecfaf0345feccfcd62c28fef9319e89b84ab0799fdfa5c574104e11e1e40f43df2cdf6f57de552012f28440d0552f62ebf
   languageName: node
   linkType: hard
 

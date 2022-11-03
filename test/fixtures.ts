@@ -11,14 +11,16 @@ import {
   PermissionLevel,
   Task,
   TaskStatus,
-  UnknownExtra,
 } from '@graasp/sdk';
+
+import { EtherpadExtra } from '../src';
 
 export const MOCK_GROUP_ID = 'g.s8oes9dhwrvt0zif';
 export const MOCK_PAD_READ_ONLY_ID = 'r.s8oes9dhwrvt0zif';
 export const MOCK_PAD_ID = 'g.s8oes9dhwrvt0zif$mock-pad-name';
 export const MOCK_AUTHOR_ID = 'a.s8oes9dhwrvt0zif';
 export const MOCK_SESSION_ID = 's.s8oes9dhwrvt0zif';
+export const MODES: Array<'read' | 'write'> = ['read', 'write'];
 
 export const MOCK_MEMBER: Member = {
   name: 'mock-name',
@@ -40,7 +42,7 @@ export const MOCK_MEMBERSHIP: ItemMembership = {
   updatedAt: 'mock-updated-at',
 };
 
-export const MOCK_ITEM: Item<UnknownExtra> = {
+export const MOCK_ITEM: Item<EtherpadExtra> = {
   id: 'mock-id',
   name: 'mock-name',
   description: 'mock-description',
@@ -79,3 +81,6 @@ export const mockTask = <T>(
   result,
   run,
 });
+
+export const DELETE_ITEM_TASK_NAME = 'DeleteItemTask';
+export const COPY_ITEM_TASK_NAME = 'CopyItemTask';
