@@ -1,62 +1,33 @@
 import { StatusCodes } from 'http-status-codes';
 import nock from 'nock';
 
-import { Author, Group, PadReadOnly, Session } from '@graasp/etherpad-api';
-import { HttpMethod, Item, TaskStatus } from '@graasp/sdk';
+import {
+  Actor,
+  HttpMethod,
+  Item,
+  PostHookHandlerType,
+  PreHookHandlerType,
+  TaskStatus,
+} from '@graasp/sdk';
 
-import { ETHERPAD_API_VERSION } from '../src/constants';
+import plugin from '../src/service-api';
+import { setUpApi } from './api';
 import { BuildAppType, buildApp } from './app';
 import { TEST_ENV } from './config';
 import {
+  COPY_ITEM_TASK_NAME,
+  DELETE_ITEM_TASK_NAME,
   MOCK_AUTHOR_ID,
   MOCK_GROUP_ID,
   MOCK_ITEM,
   MOCK_MEMBER,
+  MOCK_MEMBERSHIP,
   MOCK_PAD_ID,
   MOCK_PAD_READ_ONLY_ID,
   MOCK_SESSION_ID,
+  MODES,
   mockTask,
 } from './fixtures';
-
-type EtherpadApiResponse<T> = [
-  statusCode: number,
-  payload?: { code: number; message: string; data: T },
-];
-
-type Api = {
-  createGroupIfNotExistsFor?: EtherpadApiResponse<Group>;
-  createGroupPad?: EtherpadApiResponse<null>;
-  deletePad?: EtherpadApiResponse<null>;
-  getReadOnlyID?: EtherpadApiResponse<PadReadOnly | null>;
-  createAuthorIfNotExistsFor?: EtherpadApiResponse<Author>;
-  createSession?: EtherpadApiResponse<Session | null>;
-};
-
-/**
- * Helper to setup an emulator for the etherpad server
- * @param replies Enables which endpoints should be emulated with the given responses
- */
-function setUpApi(replies: Api): Promise<{ [Endpoint in keyof Api]: URLSearchParams }> {
-  const api = nock(`${TEST_ENV.url}/api/${ETHERPAD_API_VERSION}/`);
-
-  const endpointAndParams = Object.entries(replies).map(
-    ([endpoint, response]) =>
-      new Promise<[endpoint: string, params: URLSearchParams]>((resolve, reject) => {
-        api
-          .get(`/${endpoint}`)
-          .query(true)
-          .reply((uri, body) => {
-            const url = new URL(uri, TEST_ENV.url);
-            // check that API key is always sent
-            expect(url.searchParams.get('apikey')).toEqual(TEST_ENV.apiKey);
-            resolve([endpoint, url.searchParams]);
-            return response;
-          });
-      }),
-  );
-
-  return Promise.all(endpointAndParams).then(Object.fromEntries);
-}
 
 describe('Service API', () => {
   let instance: BuildAppType;
@@ -126,49 +97,27 @@ describe('Service API', () => {
       });
     });
 
-    it('returns error on etherpad server error: pad does already exist', async () => {
-      const { app } = instance;
-      setUpApi({
-        createGroupIfNotExistsFor: [
-          StatusCodes.OK,
-          { code: 0, message: 'ok', data: { groupID: MOCK_GROUP_ID } },
-        ],
-        createGroupPad: [
-          StatusCodes.OK,
-          { code: 1, message: 'pad does already exist', data: null },
-        ],
-      });
-      const res = await app.inject(payloadCreate);
+    it.each(['pad does already exist', 'groupID does not exist'])(
+      'returns error on etherpad server error: %p',
+      async (error) => {
+        const { app } = instance;
+        setUpApi({
+          createGroupIfNotExistsFor: [
+            StatusCodes.OK,
+            { code: 0, message: 'ok', data: { groupID: MOCK_GROUP_ID } },
+          ],
+          createGroupPad: [StatusCodes.OK, { code: 1, message: error, data: null }],
+        });
+        const res = await app.inject(payloadCreate);
 
-      expect(res.statusCode).toEqual(StatusCodes.INTERNAL_SERVER_ERROR);
-      expect(res.json()).toMatchObject({
-        code: 'GPEPERR001',
-        message: 'Internal Etherpad server error',
-        origin: 'graasp-plugin-etherpad',
-      });
-    });
-
-    it('returns error on etherpad server error: groupID does not exist', async () => {
-      const { app } = instance;
-      setUpApi({
-        createGroupIfNotExistsFor: [
-          StatusCodes.OK,
-          { code: 0, message: 'ok', data: { groupID: MOCK_GROUP_ID } },
-        ],
-        createGroupPad: [
-          StatusCodes.OK,
-          { code: 1, message: 'groupID does not exist', data: null },
-        ],
-      });
-      const res = await app.inject(payloadCreate);
-
-      expect(res.statusCode).toEqual(StatusCodes.INTERNAL_SERVER_ERROR);
-      expect(res.json()).toMatchObject({
-        code: 'GPEPERR001',
-        message: 'Internal Etherpad server error',
-        origin: 'graasp-plugin-etherpad',
-      });
-    });
+        expect(res.statusCode).toEqual(StatusCodes.INTERNAL_SERVER_ERROR);
+        expect(res.json()).toMatchObject({
+          code: 'GPEPERR001',
+          message: 'Internal Etherpad server error',
+          origin: 'graasp-plugin-etherpad',
+        });
+      },
+    );
 
     it('deletes pad on item creation error', async () => {
       const { app, spies } = instance;
@@ -193,7 +142,7 @@ describe('Service API', () => {
       expect(res.json()).toEqual({
         error: 'Internal Server Error',
         message: 'mock failure',
-        statusCode: 500,
+        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
       });
 
       const { createGroupPad, deletePad } = await reqsParams;
@@ -260,7 +209,7 @@ describe('Service API', () => {
       expect(res.headers['set-cookie']).toMatch(cookieRegex);
     });
 
-    it('returns error if item is not found', async () => {
+    it.each(MODES)('returns error if item is not found (%p)', async (mode) => {
       const { app, spies } = instance;
       setUpApi({
         getReadOnlyID: [
@@ -271,18 +220,18 @@ describe('Service API', () => {
       spies.getItem.mockImplementationOnce((actor, itemId) =>
         mockTask('mock-empty-task', actor, null as unknown as Item),
       );
-      const res = await app.inject(payloadView('read'));
+      const res = await app.inject(payloadView(mode));
 
       expect(res.statusCode).toEqual(StatusCodes.NOT_FOUND);
       expect(res.json()).toEqual({
         code: 'GPEPERR002',
         message: 'Item not found',
         origin: 'graasp-plugin-etherpad',
-        statusCode: 404,
+        statusCode: StatusCodes.NOT_FOUND,
       });
     });
 
-    it('returns error if item is missing etherpad extra', async () => {
+    it.each(MODES)('returns error if item is missing etherpad extra (%p)', async (mode) => {
       const { app, spies } = instance;
       setUpApi({
         getReadOnlyID: [
@@ -293,14 +242,38 @@ describe('Service API', () => {
       spies.getItem.mockImplementationOnce((actor, itemId) =>
         mockTask('mock-empty-task', actor, { ...MOCK_ITEM, extra: {} }),
       );
-      const res = await app.inject(payloadView('read'));
+      const res = await app.inject(payloadView(mode));
 
       expect(res.statusCode).toEqual(StatusCodes.INTERNAL_SERVER_ERROR);
       expect(res.json()).toEqual({
         code: 'GPEPERR003',
         message: 'Item missing etherpad extra',
         origin: 'graasp-plugin-etherpad',
-        statusCode: 500,
+        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+      });
+    });
+
+    it.each(MODES)('returns error if member does not have %p permission', async (mode) => {
+      const { app, spies } = instance;
+      setUpApi({
+        getReadOnlyID: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { readOnlyID: MOCK_PAD_READ_ONLY_ID } },
+        ],
+      });
+      spies.getMembership.mockImplementationOnce((actor) =>
+        mockTask('mock-failing-task', actor, MOCK_MEMBERSHIP, TaskStatus.NEW, () => {
+          throw new Error('Mock permission denied');
+        }),
+      );
+      const res = await app.inject(payloadView(mode));
+
+      expect(res.statusCode).toEqual(StatusCodes.FORBIDDEN);
+      expect(res.json()).toEqual({
+        code: 'GPEPERR004',
+        message: 'Access forbidden to this item',
+        origin: 'graasp-plugin-etherpad',
+        statusCode: StatusCodes.FORBIDDEN,
       });
     });
 
@@ -309,13 +282,7 @@ describe('Service API', () => {
       setUpApi({
         getReadOnlyID: [StatusCodes.GATEWAY_TIMEOUT],
       });
-      const res = await app.inject({
-        method: HttpMethod.GET,
-        url: '/etherpad/view/mock-item-id',
-        query: {
-          mode: 'read',
-        },
-      });
+      const res = await app.inject(payloadView('read'));
       expect(res.statusCode).toEqual(StatusCodes.INTERNAL_SERVER_ERROR);
       expect(res.json()).toMatchObject({
         code: 'GPEPERR001',
@@ -324,24 +291,114 @@ describe('Service API', () => {
       });
     });
 
-    it('returns error on etherpad server error: padID does not exist', async () => {
+    it('returns error on etherpad server error: "padID does not exist"', async () => {
       const { app } = instance;
       setUpApi({
         getReadOnlyID: [StatusCodes.OK, { code: 1, message: 'padID does not exist', data: null }],
       });
-      const res = await app.inject({
-        method: HttpMethod.GET,
-        url: '/etherpad/view/mock-item-id',
-        query: {
-          mode: 'read',
-        },
-      });
+      const res = await app.inject(payloadView('read'));
       expect(res.statusCode).toEqual(StatusCodes.INTERNAL_SERVER_ERROR);
       expect(res.json()).toMatchObject({
         code: 'GPEPERR001',
         message: 'Internal Etherpad server error',
         origin: 'graasp-plugin-etherpad',
       });
+    });
+
+    it.each(["groupID doesn't exist", "authorID doesn't exist", 'validUntil is in the past'])(
+      'returns error on etherpad server error: %p',
+      async (error) => {
+        const { app } = instance;
+        setUpApi({
+          createAuthorIfNotExistsFor: [
+            StatusCodes.OK,
+            { code: 0, message: 'ok', data: { authorID: MOCK_AUTHOR_ID } },
+          ],
+          createSession: [StatusCodes.OK, { code: 1, message: error, data: null }],
+        });
+        const res = await app.inject(payloadView('write'));
+        expect(res.statusCode).toEqual(StatusCodes.INTERNAL_SERVER_ERROR);
+        expect(res.json()).toMatchObject({
+          code: 'GPEPERR001',
+          message: 'Internal Etherpad server error',
+          origin: 'graasp-plugin-etherpad',
+        });
+      },
+    );
+  });
+
+  describe('hook handlers', () => {
+    it('deletes pad when item is deleted', async () => {
+      const { app, spies } = await buildApp();
+      const reqsParams = setUpApi({
+        deletePad: [StatusCodes.OK, { code: 0, message: 'ok', data: null }],
+      });
+      const deleteHandler = new Promise<PostHookHandlerType<Item, Actor>>((resolve, reject) => {
+        spies.setTaskPostHookHandler.mockImplementationOnce((taskName, handler) => {
+          if (taskName === DELETE_ITEM_TASK_NAME) {
+            resolve(handler);
+          }
+        });
+      });
+      await app.register(plugin, TEST_ENV);
+      // simulate deletion
+      (await deleteHandler)(MOCK_ITEM, MOCK_MEMBER, { log: app.log });
+      const { deletePad } = await reqsParams;
+      expect(deletePad?.get('padID')).toEqual(MOCK_ITEM.extra.etherpad.padID);
+    });
+
+    it('copies pad when item is copied', async () => {
+      const { app, spies } = await buildApp();
+      const reqsParams = setUpApi({
+        createGroupIfNotExistsFor: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { groupID: MOCK_GROUP_ID } },
+        ],
+        copyPad: [StatusCodes.OK, { code: 0, message: 'ok', data: null }],
+      });
+      const copyHandler = new Promise<PreHookHandlerType<Item, Actor>>((resolve, reject) => {
+        spies.setTaskPreHookHandler.mockImplementationOnce((taskName, handler) => {
+          if (taskName === COPY_ITEM_TASK_NAME) {
+            resolve(handler);
+          }
+        });
+      });
+      await app.register(plugin, TEST_ENV);
+      // simulate item copy
+      (await copyHandler)(MOCK_ITEM, MOCK_MEMBER, { log: app.log });
+      const { createGroupIfNotExistsFor, copyPad } = await reqsParams;
+      expect(copyPad?.get('destinationID')).toEqual(
+        `${MOCK_ITEM.extra.etherpad.groupID}$${createGroupIfNotExistsFor?.get('groupMapper')}`,
+      );
+      expect(copyPad?.get('sourceID')).toEqual(MOCK_ITEM.extra.etherpad.padID);
+    });
+
+    it('throws if pad ID is not defined on copy', async () => {
+      const { app, spies } = await buildApp();
+      const reqsParams = setUpApi({
+        createGroupIfNotExistsFor: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { groupID: MOCK_GROUP_ID } },
+        ],
+        copyPad: [StatusCodes.OK, { code: 0, message: 'ok', data: null }],
+      });
+      const copyHandler = new Promise<PreHookHandlerType<Item, Actor>>((resolve, reject) => {
+        spies.setTaskPreHookHandler.mockImplementationOnce((taskName, handler) => {
+          if (taskName === COPY_ITEM_TASK_NAME) {
+            resolve(handler);
+          }
+        });
+      });
+      await app.register(plugin, TEST_ENV);
+      // simulate item copy
+      const copyHandlerFn = await copyHandler;
+      await expect(
+        copyHandlerFn({ ...MOCK_ITEM, extra: {} }, MOCK_MEMBER, { log: app.log }),
+      ).rejects.toEqual(
+        new Error(
+          `Illegal state: property padID is missing in etherpad extra for item ${MOCK_ITEM.id}`,
+        ),
+      );
     });
   });
 });

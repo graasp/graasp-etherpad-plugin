@@ -32,8 +32,8 @@ const publicPlugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, 
   });
 
   // create a route prefix for etherpad
-  fastify.register(
-    (fastify: FastifyInstance) => {
+  await fastify.register(
+    async (fastify: FastifyInstance) => {
       /**
        * Etherpad read-only mode
        * Access should be granted if and only if the item is public
