@@ -12,8 +12,7 @@ import { buildPadPath, validatePluginOptions } from './utils';
 const publicPlugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, options) => {
   const { public: publicPlugin, taskRunner } = fastify;
 
-  validatePluginOptions(options);
-  const { url: etherpadUrl, apiKey } = options;
+  const { url: etherpadUrl, publicUrl, apiKey } = validatePluginOptions(options);
 
   if (!publicPlugin) {
     throw new Error('graasp-plugin-etherpad: Public plugin was not registered!');
@@ -60,7 +59,7 @@ const publicPlugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, 
           const { padID } = item.extra.etherpad;
 
           const { readOnlyID } = await etherpad.getReadOnlyID({ padID });
-          return { padUrl: buildPadPath({ padID: readOnlyID }, etherpadUrl) };
+          return { padUrl: buildPadPath({ padID: readOnlyID }, publicUrl) };
         },
       );
     },

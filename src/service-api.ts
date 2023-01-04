@@ -20,9 +20,8 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
     taskRunner,
   } = fastify;
 
-  validatePluginOptions(options);
-  const { url: etherpadUrl, apiKey } = options;
-  const domain = new URL(etherpadUrl).hostname;
+  const { url: etherpadUrl, publicUrl, apiKey } = validatePluginOptions(options);
+  const domain = new URL(publicUrl).hostname;
 
   // connect to etherpad server
   const etherpad = new GraaspEtherpad({
@@ -140,7 +139,7 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
           switch (mode) {
             case 'read': {
               const { readOnlyID } = await etherpad.getReadOnlyID({ padID });
-              return { padUrl: buildPadPath({ padID: readOnlyID }, etherpadUrl) };
+              return { padUrl: buildPadPath({ padID: readOnlyID }, publicUrl) };
             }
             case 'write': {
               // map user to etherpad author
@@ -165,7 +164,7 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
                 httpOnly: true,
               });
 
-              return { padUrl: buildPadPath({ padID }, etherpadUrl) };
+              return { padUrl: buildPadPath({ padID }, publicUrl) };
             }
           }
         },
