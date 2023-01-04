@@ -153,13 +153,13 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
               const { sessionID } = await etherpad.createSession({
                 authorID,
                 groupID,
-                validUntil: expiration.toMillis(),
+                validUntil: expiration.toSeconds(),
               });
 
               // set cookie
               reply.setCookie('sessionID', sessionID, {
                 domain,
-                path: buildPadPath({ padID }),
+                path: '/',
                 signed: true,
                 httpOnly: true,
               });
