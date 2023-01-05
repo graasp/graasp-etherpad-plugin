@@ -38,7 +38,7 @@
   "devDependencies": {
     "@commitlint/cli": "^13.1.0",
     "@commitlint/config-conventional": "^13.1.0",
-    "@graasp/sdk": "github:graasp/graasp-sdk#53-etherpad",
+    "@graasp/sdk": "github:graasp/graasp-sdk#etherpad",
     "@trivago/prettier-plugin-sort-imports": "3.2.0",
     "@types/jest": "27.0.1",
     "@types/uuid": "8.3.4",
