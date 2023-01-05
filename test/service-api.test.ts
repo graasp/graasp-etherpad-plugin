@@ -202,9 +202,8 @@ describe('Service API', () => {
         padUrl: `${TEST_ENV.url}/p/${MOCK_GROUP_ID}$mock-pad-name`,
       });
       const mockSessionIdRegex = MOCK_SESSION_ID.replace('.', '\\.');
-      const mockPadIdRegex = MOCK_PAD_ID.replace('.', '\\.').replace('$', '\\$');
       const cookieRegex = new RegExp(
-        `^sessionID=${mockSessionIdRegex}.*; Domain=localhost; Path=\/p\/${mockPadIdRegex}; HttpOnly$`,
+        `^sessionID=${mockSessionIdRegex}; Domain=localhost; Path=\/$`,
       );
       expect(res.headers['set-cookie']).toMatch(cookieRegex);
     });

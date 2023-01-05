@@ -9,7 +9,7 @@ export const createEtherpad = {
   body: {
     type: 'object',
     properties: {
-      name: { type: 'string', minLength: 1, pattern: '^\\S+( \\S+)*$' },
+      name: { $ref: 'http://graasp.org/#/definitions/uuid' },
     },
     required: ['name'],
     additionalProperties: false,

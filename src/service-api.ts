@@ -160,8 +160,8 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
               reply.setCookie('sessionID', sessionID, {
                 domain,
                 path: '/',
-                signed: true,
-                httpOnly: true,
+                signed: false,
+                httpOnly: false, // cookie must be available to Etherpad's JS code for it to work!
               });
 
               return { padUrl: buildPadPath({ padID }, publicUrl) };
