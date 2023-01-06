@@ -23,7 +23,7 @@ export function validatePluginOptions(options: EtherpadPluginOptions) {
 
   return {
     ...options,
-    publicUrl
+    publicUrl,
   };
 }
 

@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 
 import { Item } from '@graasp/sdk';
 
-import { ETHERPAD_API_VERSION } from './constants';
+import { ETHERPAD_API_VERSION, PLUGIN_NAME } from './constants';
 import { ItemMissingExtraError, ItemNotFoundError } from './errors';
 import { GraaspEtherpad } from './etherpad';
 import { getEtherpadFromItem } from './schemas';
@@ -15,7 +15,7 @@ const publicPlugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, 
   const { url: etherpadUrl, publicUrl, apiKey } = validatePluginOptions(options);
 
   if (!publicPlugin) {
-    throw new Error('graasp-plugin-etherpad: Public plugin was not registered!');
+    throw new Error(`${PLUGIN_NAME}: Public plugin was not registered!`);
   }
 
   const {

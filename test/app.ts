@@ -44,7 +44,7 @@ export async function buildApp(args?: { options?: EtherpadPluginOptions }) {
     request.member = MOCK_MEMBER;
   });
 
-  // uuid schema referenced from h5pImport schema should be registered by core
+  // uuid schema referenced from our schema should be registered by core
   // we use a simple string schema instead
   app.addSchema({
     $id: 'http://graasp.org/',
