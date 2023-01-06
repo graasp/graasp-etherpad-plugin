@@ -30,7 +30,6 @@
   "dependencies": {
     "@fastify/cookie": "^6.0.0",
     "@graasp/etherpad-api": "github:graasp/etherpad-api",
-    "@types/luxon": "3.0.2",
     "http-status-codes": "2.2.0",
     "luxon": "3.0.4",
     "uuid": "9.0.0"
@@ -41,6 +40,7 @@
     "@graasp/sdk": "0.2.0",
     "@trivago/prettier-plugin-sort-imports": "3.2.0",
     "@types/jest": "27.0.1",
+    "@types/luxon": "3.0.2",
     "@types/uuid": "8.3.4",
     "@typescript-eslint/eslint-plugin": "5.4.0",
     "@typescript-eslint/parser": "5.4.0",
