@@ -1,10 +1,12 @@
 import { StatusCodes } from 'http-status-codes';
+import { DateTime } from 'luxon';
 import nock from 'nock';
 
 import {
   Actor,
   HttpMethod,
   Item,
+  PermissionLevel,
   PostHookHandlerType,
   PreHookHandlerType,
   TaskStatus,
@@ -166,6 +168,14 @@ describe('Service API', () => {
           StatusCodes.OK,
           { code: 0, message: 'ok', data: { readOnlyID: MOCK_PAD_READ_ONLY_ID } },
         ],
+        createAuthorIfNotExistsFor: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { authorID: MOCK_AUTHOR_ID } },
+        ],
+        createSession: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { sessionID: MOCK_SESSION_ID } },
+        ],
       });
       const res = await app.inject(payloadView('read'));
 
@@ -178,7 +188,7 @@ describe('Service API', () => {
     });
 
     it('views a pad in write mode successfully', async () => {
-      const { app } = instance;
+      const { app, spies } = instance;
       const reqParams = setUpApi({
         createAuthorIfNotExistsFor: [
           StatusCodes.OK,
@@ -189,6 +199,15 @@ describe('Service API', () => {
           { code: 0, message: 'ok', data: { sessionID: MOCK_SESSION_ID } },
         ],
       });
+
+      // override get item membership: should return with write permission
+      spies.getMembership.mockImplementationOnce((member) =>
+        mockTask('MockGetMemberItemMembershipTask', member, {
+          ...MOCK_MEMBERSHIP,
+          permission: PermissionLevel.Write as PermissionLevel,
+        }),
+      );
+
       const res = await app.inject(payloadView('write'));
 
       const { createAuthorIfNotExistsFor, createSession } = await reqParams;
@@ -203,9 +222,38 @@ describe('Service API', () => {
       });
       const mockSessionIdRegex = MOCK_SESSION_ID.replace('.', '\\.');
       const cookieRegex = new RegExp(
-        `^sessionID=${mockSessionIdRegex}; Domain=localhost; Path=\/$`,
+        `^sessionID=${mockSessionIdRegex}; Domain=localhost; Path=\/; Expires=(.*)$`,
       );
       expect(res.headers['set-cookie']).toMatch(cookieRegex);
+      const matches = res.headers['set-cookie']?.toString().match(cookieRegex) as RegExpMatchArray;
+      const [_, dateString] = matches;
+      expect(DateTime.fromRFC2822(dateString).isValid).toBe(true);
+    });
+
+    it('views a pad in write mode returns a read-only pad ID if user has read permission only', async () => {
+      const { app } = instance;
+      const reqParams = setUpApi({
+        getReadOnlyID: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { readOnlyID: MOCK_PAD_READ_ONLY_ID } },
+        ],
+        createAuthorIfNotExistsFor: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { authorID: MOCK_AUTHOR_ID } },
+        ],
+        createSession: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { sessionID: MOCK_SESSION_ID } },
+        ],
+      });
+      const res = await app.inject(payloadView('write')); // <- we request write mode and should get a read ID
+
+      const { getReadOnlyID } = await reqParams;
+      expect(getReadOnlyID?.get('padID')).toEqual(MOCK_PAD_ID);
+      expect(res.statusCode).toEqual(StatusCodes.OK);
+      expect(res.json()).toEqual({
+        padUrl: `${TEST_ENV.url}/p/${MOCK_PAD_READ_ONLY_ID}`,
+      });
     });
 
     it.each(MODES)('returns error if item is not found (%p)', async (mode) => {

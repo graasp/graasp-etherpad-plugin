@@ -3,7 +3,7 @@ import { v4 } from 'uuid';
 
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 
-import { Item, ItemType, PermissionLevel } from '@graasp/sdk';
+import { Item, ItemType, PermissionLevel, PermissionLevelCompare } from '@graasp/sdk';
 
 import { ETHERPAD_API_VERSION } from './constants';
 import { AccessForbiddenError, ItemMissingExtraError, ItemNotFoundError } from './errors';
@@ -121,52 +121,72 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
             throw new ItemMissingExtraError(item);
           }
 
+          // 1. first check at least read access
           const getMembership = itemMembershipTaskManager.createGetMemberItemMembershipTask(
             member,
             {
               item,
-              validatePermission: mode === 'write' ? PermissionLevel.Write : PermissionLevel.Read,
+              validatePermission: PermissionLevel.Read,
             },
           );
+
+          let membership;
           try {
-            await taskRunner.runSingle(getMembership);
+            membership = await taskRunner.runSingle(getMembership);
+            if (!membership) {
+              throw new Error(); // will be caught by handler below to throw same exception
+            }
           } catch (error) {
             throw new AccessForbiddenError(error);
           }
 
+          // 2. if mode was write, check that permission is at least write
+          // otherwise automatically fallback to read
+          const checkedMode =
+            mode === 'write' &&
+            PermissionLevelCompare.gte(membership.permission, PermissionLevel.Write)
+              ? 'write'
+              : 'read';
+
           const { padID, groupID } = item.extra.etherpad;
 
-          switch (mode) {
+          let padUrl;
+          switch (checkedMode) {
             case 'read': {
               const { readOnlyID } = await etherpad.getReadOnlyID({ padID });
-              return { padUrl: buildPadPath({ padID: readOnlyID }, publicUrl) };
+              padUrl = buildPadPath({ padID: readOnlyID }, publicUrl);
+              break;
             }
             case 'write': {
-              // map user to etherpad author
-              const { authorID } = await etherpad.createAuthorIfNotExistsFor({
-                authorMapper: member.id,
-                name: member.name,
-              });
-
-              // start session for user on the group
-              const expiration = DateTime.now().plus({ days: 1 });
-              const { sessionID } = await etherpad.createSession({
-                authorID,
-                groupID,
-                validUntil: expiration.toSeconds(),
-              });
-
-              // set cookie
-              reply.setCookie('sessionID', sessionID, {
-                domain,
-                path: '/',
-                signed: false,
-                httpOnly: false, // cookie must be available to Etherpad's JS code for it to work!
-              });
-
-              return { padUrl: buildPadPath({ padID }, publicUrl) };
+              padUrl = buildPadPath({ padID }, publicUrl);
+              break;
             }
           }
+
+          // map user to etherpad author
+          const { authorID } = await etherpad.createAuthorIfNotExistsFor({
+            authorMapper: member.id,
+            name: member.name,
+          });
+
+          // start session for user on the group
+          const expiration = DateTime.now().plus({ days: 1 });
+          const { sessionID } = await etherpad.createSession({
+            authorID,
+            groupID,
+            validUntil: expiration.toSeconds(),
+          });
+
+          // set cookie
+          reply.setCookie('sessionID', sessionID, {
+            domain,
+            path: '/',
+            expires: expiration.toJSDate(),
+            signed: false,
+            httpOnly: false, // cookie must be available to Etherpad's JS code for it to work!
+          });
+
+          return { padUrl };
         },
       );
 
