@@ -20,8 +20,7 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
     taskRunner,
   } = fastify;
 
-  const { url: etherpadUrl, publicUrl, apiKey } = validatePluginOptions(options);
-  const domain = new URL(publicUrl).hostname;
+  const { url: etherpadUrl, publicUrl, apiKey, cookieDomain } = validatePluginOptions(options);
 
   // connect to etherpad server
   const etherpad = new GraaspEtherpad({
@@ -179,7 +178,7 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
 
           // set cookie
           reply.setCookie('sessionID', sessionID, {
-            domain,
+            domain: cookieDomain,
             path: '/',
             expires: expiration.toJSDate(),
             signed: false,

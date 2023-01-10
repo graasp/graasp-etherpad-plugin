@@ -7,11 +7,13 @@ export function validatePluginOptions(options: EtherpadPluginOptions) {
     throw new Error('Etherpad url environment variable is not defined!');
   }
 
-  const publicUrl = options.publicUrl ?? url;
-
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     throw new Error('Etherpad url environment variable must contain protocol!');
   }
+
+  const publicUrl = options.publicUrl ?? url;
+
+  const cookieDomain = options.cookieDomain ?? new URL(publicUrl).hostname;
 
   if (!apiKey) {
     throw new Error('Etherpad API key environment variable is not defined!');
@@ -24,6 +26,7 @@ export function validatePluginOptions(options: EtherpadPluginOptions) {
   return {
     ...options,
     publicUrl,
+    cookieDomain,
   };
 }
 
