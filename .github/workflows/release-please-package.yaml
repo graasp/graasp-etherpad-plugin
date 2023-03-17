@@ -1,0 +1,64 @@
+name: Release new package version
+
+# Control when the action will run
+on:
+  push:
+    branches:
+      - "main"
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      # uses the GitHub action from google to automate releases.
+      - uses: google-github-actions/release-please-action@v3
+        id: release
+        with:
+          release-type: node
+          package-name: graasp-plugin-etherpad
+          changelog-types: '[{"type":"feat","section":"Features","hidden":false},{"type":"fix","section":"Bug Fixes","hidden":false},{"type":"docs","section":"Documentation","hidden":false}]'
+
+      # checkout the code to get the latest version
+      - uses: actions/checkout@v3
+
+      # in case a release was created, this will create or update the major and minor tags
+      # so you can refer to `v1` or `v1.1` and get the latest version corresponding to that prefix.
+      - name: Tag major and minor versions
+        uses: jacobsvante/tag-major-minor-action@v0.1
+        if: ${{ steps.release.outputs.release_created }}
+        with:
+          major: ${{ steps.release.outputs.major }}
+          minor: ${{ steps.release.outputs.minor }}
+
+      # This section is useful only if you plan on publishing your package to NPM
+      # Remove it if you do not plan to publish to NPM
+      - name: Publish to NPM
+        uses: graasp/graasp-deploy/.github/actions/publish-to-npm@v1
+        with:
+          npm-token: ${{ secrets.NPM_TOKEN }}
+        if: ${{ steps.release.outputs.release_created }}
+
+      - name: Auto Tag
+        id: auto-tag
+        if: ${{ steps.release.outputs.releases_created }}
+        run: |
+          gh label create ${{ env.TAG_NAME }} -f --color 0E8A16 --repo ${{ env.REPO }};
+          echo '### `${{ env.TAG_NAME }}` :rocket:' >> $GITHUB_STEP_SUMMARY;
+          echo 'Tag all ${{ env.PRE_LABEL_NAME }} issues and prs as ${{ env.TAG_NAME }}';
+          for cmd in issue pr;
+          do
+            for nbr in $(gh $cmd list -l ${{ env.PRE_LABEL_NAME }} -s all --json number --jq '.[].number' --repo ${{ env.REPO }} );
+            do
+              URL=$(gh $cmd edit $nbr --add-label ${{ env.TAG_NAME }} --remove-label ${{ env.PRE_LABEL_NAME }} --repo ${{ env.REPO }} );
+              echo "- $cmd #$nbr $URL" >> $GITHUB_STEP_SUMMARY;
+            done
+          done
+          echo '' >> $GITHUB_STEP_SUMMARY;
+          echo ':rocket: All related issues and prs tagged !' >> $GITHUB_STEP_SUMMARY;
+          echo ':scroll: Check out [the created release](${{ env.RELEASE_URL }}) !' >> $GITHUB_STEP_SUMMARY;
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
+          PRE_LABEL_NAME: un-released
+          REPO: ${{ github.event.repository.full_name }}
+          RELEASE_URL: ${{ github.event.repository.html_url }}/releases/tag/${{ steps.release.outputs.tag_name }}
