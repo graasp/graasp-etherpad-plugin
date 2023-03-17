@@ -193,15 +193,21 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
        * Delete etherpad on item delete
        */
       const deleteItemTaskName = itemTaskManager.getDeleteTaskName();
-      taskRunner.setTaskPostHookHandler<Item<EtherpadExtra>>(
+      taskRunner.setTaskPreHookHandler<Item<EtherpadExtra>>(
         deleteItemTaskName,
         async (item, actor) => {
           if (item.type !== ItemType.ETHERPAD) {
             return;
           }
 
-          const { padID } = item.extra.etherpad;
-          etherpad.deletePad({ padID });
+          const padID = item?.extra?.etherpad?.padID;
+          if (!padID) {
+            throw new Error(
+              `Illegal state: property padID is missing in etherpad extra for item ${item.id}`,
+            );
+          }
+
+          await etherpad.deletePad({ padID });
         },
       );
 
@@ -223,7 +229,9 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
             );
           }
 
-          await createPad({ action: 'copy', sourceID: padID });
+          const { groupID, padName } = await createPad({ action: 'copy', sourceID: padID });
+          // assign pad copy to new item's extra
+          item.extra = buildEtherpadExtra({ groupID, padName });
         },
       );
     },
