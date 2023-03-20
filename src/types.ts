@@ -1,5 +1,3 @@
-import { UnknownExtra } from '@graasp/sdk';
-
 export interface EtherpadPluginOptions {
   /**
    * URL (incl. protocol and port) of the etherpad server
@@ -20,11 +18,4 @@ export interface EtherpadPluginOptions {
    * secret api key to authorize this app against the etherpad server
    */
   apiKey: string;
-}
-
-export interface EtherpadExtra extends UnknownExtra {
-  etherpad: {
-    padID: string;
-    groupID: string;
-  };
 }

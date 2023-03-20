@@ -3,6 +3,7 @@ import { FastifyLoggerInstance } from 'fastify';
 import {
   Actor,
   DatabaseTransactionHandler,
+  EtherpadItemExtra,
   Item,
   ItemMembership,
   ItemType,
@@ -12,8 +13,6 @@ import {
   Task,
   TaskStatus,
 } from '@graasp/sdk';
-
-import { EtherpadExtra } from '../src';
 
 export const MOCK_GROUP_ID = 'g.s8oes9dhwrvt0zif';
 export const MOCK_PAD_READ_ONLY_ID = 'r.s8oes9dhwrvt0zif';
@@ -42,7 +41,7 @@ export const MOCK_MEMBERSHIP: ItemMembership = {
   updatedAt: 'mock-updated-at',
 };
 
-export const MOCK_ITEM: Item<EtherpadExtra> = {
+export const MOCK_ITEM: Item<EtherpadItemExtra> = {
   id: 'mock-id',
   name: 'mock-name',
   description: 'mock-description',
