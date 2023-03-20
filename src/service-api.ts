@@ -94,7 +94,12 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
             return await taskRunner.runSingleSequence(createItem);
           } catch (error) {
             // create item failed, delete created pad
-            etherpad.deletePad({ padID: buildPadID({ groupID, padName }) });
+            const padID = buildPadID({ groupID, padName });
+            etherpad
+              .deletePad({ padID })
+              .catch((e) =>
+                log.error(`${PLUGIN_NAME}: failed to delete orphan etherpad ${padID}`, e),
+              );
             throw error;
           }
         },
@@ -180,7 +185,7 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
           const { sessionID } = await etherpad.createSession({
             authorID,
             groupID,
-            validUntil: expiration.toSeconds(),
+            validUntil: expiration.toUnixInteger(),
           });
 
           // get available sessions for user
@@ -190,7 +195,7 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
           const now = DateTime.now();
           const { valid, expired } = Object.entries(sessions).reduce(
             ({ valid, expired }, [id, { validUntil }]) => {
-              const isExpired = DateTime.fromSeconds(validUntil) >= now;
+              const isExpired = DateTime.fromSeconds(validUntil) <= now;
               isExpired ? expired.add(id) : valid.add(id);
               return { valid, expired };
             },
