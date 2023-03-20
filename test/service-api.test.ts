@@ -381,7 +381,7 @@ describe('Service API', () => {
         deletePad: [StatusCodes.OK, { code: 0, message: 'ok', data: null }],
       });
       const deleteHandler = new Promise<PostHookHandlerType<Item, Actor>>((resolve, reject) => {
-        spies.setTaskPostHookHandler.mockImplementationOnce((taskName, handler) => {
+        spies.setTaskPreHookHandler.mockImplementation((taskName, handler) => {
           if (taskName === DELETE_ITEM_TASK_NAME) {
             resolve(handler);
           }
@@ -395,6 +395,8 @@ describe('Service API', () => {
     });
 
     it('copies pad when item is copied', async () => {
+      const ORIGINAL_ITEM = MOCK_ITEM;
+      const COPIED_ITEM = { ...MOCK_ITEM };
       const { app, spies } = await buildApp();
       const reqsParams = setUpApi({
         createGroupIfNotExistsFor: [
@@ -404,7 +406,7 @@ describe('Service API', () => {
         copyPad: [StatusCodes.OK, { code: 0, message: 'ok', data: null }],
       });
       const copyHandler = new Promise<PreHookHandlerType<Item, Actor>>((resolve, reject) => {
-        spies.setTaskPreHookHandler.mockImplementationOnce((taskName, handler) => {
+        spies.setTaskPreHookHandler.mockImplementation((taskName, handler) => {
           if (taskName === COPY_ITEM_TASK_NAME) {
             resolve(handler);
           }
@@ -412,12 +414,15 @@ describe('Service API', () => {
       });
       await app.register(plugin, TEST_ENV);
       // simulate item copy
-      (await copyHandler)(MOCK_ITEM, MOCK_MEMBER, { log: app.log });
+      const doCopy = (await copyHandler)(COPIED_ITEM, MOCK_MEMBER, { log: app.log });
+      await doCopy;
       const { createGroupIfNotExistsFor, copyPad } = await reqsParams;
       expect(copyPad?.get('destinationID')).toEqual(
         `${MOCK_ITEM.extra.etherpad.groupID}$${createGroupIfNotExistsFor?.get('groupMapper')}`,
       );
       expect(copyPad?.get('sourceID')).toEqual(MOCK_ITEM.extra.etherpad.padID);
+      // verify that the handler mutated the item on its extra (should have created a newly copied pad)
+      expect(ORIGINAL_ITEM.extra).not.toEqual(COPIED_ITEM.extra);
     });
 
     it('throws if pad ID is not defined on copy', async () => {
@@ -430,7 +435,7 @@ describe('Service API', () => {
         copyPad: [StatusCodes.OK, { code: 0, message: 'ok', data: null }],
       });
       const copyHandler = new Promise<PreHookHandlerType<Item, Actor>>((resolve, reject) => {
-        spies.setTaskPreHookHandler.mockImplementationOnce((taskName, handler) => {
+        spies.setTaskPreHookHandler.mockImplementation((taskName, handler) => {
           if (taskName === COPY_ITEM_TASK_NAME) {
             resolve(handler);
           }

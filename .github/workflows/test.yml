@@ -6,6 +6,10 @@ jobs:
   build-node:
     runs-on: ubuntu-latest
 
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+      cancel-in-progress: true
+
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js 16.x

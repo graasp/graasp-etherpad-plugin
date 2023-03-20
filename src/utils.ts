@@ -1,4 +1,6 @@
-import { EtherpadExtra, EtherpadPluginOptions } from './types';
+import { EtherpadItemExtra } from '@graasp/sdk';
+
+import { EtherpadPluginOptions } from './types';
 
 export function validatePluginOptions(options: EtherpadPluginOptions) {
   const { url, apiKey } = options;
@@ -57,7 +59,7 @@ export function buildEtherpadExtra({
 }: {
   groupID: string;
   padName: string;
-}): EtherpadExtra {
+}): EtherpadItemExtra {
   return {
     etherpad: {
       padID: buildPadID({ groupID, padName }),

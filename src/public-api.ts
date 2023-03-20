@@ -1,12 +1,12 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 
-import { Item } from '@graasp/sdk';
+import { EtherpadItemExtra, Item } from '@graasp/sdk';
 
 import { ETHERPAD_API_VERSION, PLUGIN_NAME } from './constants';
 import { ItemMissingExtraError, ItemNotFoundError } from './errors';
 import { GraaspEtherpad } from './etherpad';
 import { getEtherpadFromItem } from './schemas';
-import { EtherpadExtra, EtherpadPluginOptions } from './types';
+import { EtherpadPluginOptions } from './types';
 import { buildPadPath, validatePluginOptions } from './utils';
 
 const publicPlugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, options) => {
@@ -46,7 +46,7 @@ const publicPlugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, 
           } = request;
 
           const getItem = itemTaskManager.createGetPublicItemTask(graaspActor, { itemId });
-          const item = (await taskRunner.runSingle(getItem)) as Item<Partial<EtherpadExtra>>;
+          const item = (await taskRunner.runSingle(getItem)) as Item<Partial<EtherpadItemExtra>>;
 
           if (!item) {
             throw new ItemNotFoundError(itemId);
