@@ -1144,7 +1144,7 @@ __metadata:
     "@commitlint/config-conventional": 17.4.4
     "@fastify/cookie": 6.0.0
     "@graasp/etherpad-api": "github:graasp/etherpad-api"
-    "@graasp/sdk": "github:graasp/graasp-sdk#116-fix-etherpad-extra"
+    "@graasp/sdk": 0.9.3
     "@trivago/prettier-plugin-sort-imports": 4.1.1
     "@types/jest": 29.5.0
     "@types/luxon": 3.2.0
@@ -1160,19 +1160,19 @@ __metadata:
     jest-ts-auto-mock: 2.1.0
     luxon: 3.3.0
     nock: 13.3.0
-    prettier: 2.8.4
+    prettier: 2.8.5
     pretty-quick: 3.1.3
     ts-auto-mock: 3.6.4
     ts-jest: 29.0.5
     ttypescript: 1.5.15
-    typescript: 4.9.4
+    typescript: 4.9.5
     uuid: 9.0.0
   languageName: unknown
   linkType: soft
 
-"@graasp/sdk@github:graasp/graasp-sdk#116-fix-etherpad-extra":
-  version: 0.9.2
-  resolution: "@graasp/sdk@https://github.com/graasp/graasp-sdk.git#commit=6963cfc26ab95f880af3ce935bc457076404b629"
+"@graasp/sdk@npm:0.9.3":
+  version: 0.9.3
+  resolution: "@graasp/sdk@npm:0.9.3"
   dependencies:
     "@fastify/secure-session": 5.3.0
     aws-sdk: 2.1310.0
@@ -1183,7 +1183,7 @@ __metadata:
     qs: 6.11.0
     slonik: 28.1.1
     uuid: 9.0.0
-  checksum: ffd3739cf33dc906799c01f0af6d5138f63c4555cab01e9a6e821c3f97843029777eaa6083102239b5f3043be71eeda2888f245700598f2bcc6f1807aca0b7f9
+  checksum: 222e8d7e00f5c4fbfb23d596899edd0afcaa0640c540ae90f85d6cd6f92b1bb7832bf50504fecd4aafe1a185b79ecae42a75163bd5fca5975e535fbeb84c3049
   languageName: node
   linkType: hard
 
@@ -6408,12 +6408,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prettier@npm:2.8.4":
-  version: 2.8.4
-  resolution: "prettier@npm:2.8.4"
+"prettier@npm:2.8.5":
+  version: 2.8.5
+  resolution: "prettier@npm:2.8.5"
   bin:
     prettier: bin-prettier.js
-  checksum: c173064bf3df57b6d93d19aa98753b9b9dd7657212e33b41ada8e2e9f9884066bb9ca0b4005b89b3ab137efffdf8fbe0b462785aba20364798ff4303aadda57e
+  checksum: b7f8d30e14061e0478bc5a59d4d889688d804c173a0daa91b1b85dc08eef5eb6956d1b59f4037770776fda5b967f6c9ca3b7a8a43c50bedb4c7b182029f865aa
   languageName: node
   linkType: hard
 
@@ -7723,17 +7723,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:4.9.4":
-  version: 4.9.4
-  resolution: "typescript@npm:4.9.4"
-  bin:
-    tsc: bin/tsc
-    tsserver: bin/tsserver
-  checksum: e782fb9e0031cb258a80000f6c13530288c6d63f1177ed43f770533fdc15740d271554cdae86701c1dd2c83b082cea808b07e97fd68b38a172a83dbf9e0d0ef9
-  languageName: node
-  linkType: hard
-
-"typescript@npm:^4.6.4":
+"typescript@npm:4.9.5, typescript@npm:^4.6.4":
   version: 4.9.5
   resolution: "typescript@npm:4.9.5"
   bin:
@@ -7743,17 +7733,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@4.9.4#~builtin<compat/typescript>":
-  version: 4.9.4
-  resolution: "typescript@patch:typescript@npm%3A4.9.4#~builtin<compat/typescript>::version=4.9.4&hash=de8f8a"
-  bin:
-    tsc: bin/tsc
-    tsserver: bin/tsserver
-  checksum: 37f6e2c3c5e2aa5934b85b0fddbf32eeac8b1bacf3a5b51d01946936d03f5377fe86255d4e5a4ae628fd0cd553386355ad362c57f13b4635064400f3e8e05b9d
-  languageName: node
-  linkType: hard
-
-"typescript@patch:typescript@^4.6.4#~builtin<compat/typescript>":
+"typescript@patch:typescript@4.9.5#~builtin<compat/typescript>, typescript@patch:typescript@^4.6.4#~builtin<compat/typescript>":
   version: 4.9.5
   resolution: "typescript@patch:typescript@npm%3A4.9.5#~builtin<compat/typescript>::version=4.9.5&hash=de8f8a"
   bin:
