@@ -12,6 +12,7 @@ import {
   TaskStatus,
 } from '@graasp/sdk';
 
+import { MAX_SESSIONS_IN_COOKIE } from '../src/constants';
 import plugin from '../src/service-api';
 import { setUpApi } from './api';
 import { BuildAppType, buildApp } from './app';
@@ -176,6 +177,7 @@ describe('Service API', () => {
           StatusCodes.OK,
           { code: 0, message: 'ok', data: { sessionID: MOCK_SESSION_ID } },
         ],
+        listSessionsOfAuthor: [StatusCodes.OK, { code: 0, message: 'ok', data: null }],
       });
       const res = await app.inject(payloadView('read'));
 
@@ -198,6 +200,7 @@ describe('Service API', () => {
           StatusCodes.OK,
           { code: 0, message: 'ok', data: { sessionID: MOCK_SESSION_ID } },
         ],
+        listSessionsOfAuthor: [StatusCodes.OK, { code: 0, message: 'ok', data: null }],
       });
 
       // override get item membership: should return with write permission
@@ -220,14 +223,23 @@ describe('Service API', () => {
       expect(res.json()).toEqual({
         padUrl: `${TEST_ENV.url}/p/${MOCK_GROUP_ID}$mock-pad-name`,
       });
-      const mockSessionIdRegex = MOCK_SESSION_ID.replace('.', '\\.');
-      const cookieRegex = new RegExp(
-        `^sessionID=${mockSessionIdRegex}; Domain=localhost; Path=\/; Expires=(.*)$`,
-      );
-      expect(res.headers['set-cookie']).toMatch(cookieRegex);
-      const matches = res.headers['set-cookie']?.toString().match(cookieRegex) as RegExpMatchArray;
-      const [_, dateString] = matches;
-      expect(DateTime.fromRFC2822(dateString).isValid).toBe(true);
+
+      expect(res.cookies.length).toEqual(1);
+      const { name, value, domain, path, expires } = res.cookies[0] as {
+        name: string;
+        value: string;
+        domain: string;
+        path: string;
+        expires: Date;
+      };
+      expect(name).toEqual('sessionID');
+      expect(value).toEqual(MOCK_SESSION_ID);
+      expect(domain).toEqual('localhost');
+      expect(path).toEqual('/');
+      const expiration = DateTime.fromJSDate(expires);
+      // since we don't know the exact time the server created the cookie, verify against a range
+      expect(expiration > DateTime.now().plus({ days: 1 }).minus({ minutes: 1 })).toBeTruthy();
+      expect(expiration < DateTime.now().plus({ days: 1 }).plus({ minutes: 1 })).toBeTruthy();
     });
 
     it('views a pad in write mode returns a read-only pad ID if user has read permission only', async () => {
@@ -245,6 +257,7 @@ describe('Service API', () => {
           StatusCodes.OK,
           { code: 0, message: 'ok', data: { sessionID: MOCK_SESSION_ID } },
         ],
+        listSessionsOfAuthor: [StatusCodes.OK, { code: 0, message: 'ok', data: null }],
       });
       const res = await app.inject(payloadView('write')); // <- we request write mode and should get a read ID
 
@@ -254,6 +267,213 @@ describe('Service API', () => {
       expect(res.json()).toEqual({
         padUrl: `${TEST_ENV.url}/p/${MOCK_PAD_READ_ONLY_ID}`,
       });
+    });
+
+    it('concatenates existing sessions in cookie', async () => {
+      const { app } = instance;
+      const reqParams = setUpApi({
+        getReadOnlyID: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { readOnlyID: MOCK_PAD_READ_ONLY_ID } },
+        ],
+        createAuthorIfNotExistsFor: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { authorID: MOCK_AUTHOR_ID } },
+        ],
+        createSession: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { sessionID: MOCK_SESSION_ID } },
+        ],
+        listSessionsOfAuthor: [
+          StatusCodes.OK,
+          {
+            code: 0,
+            message: 'ok',
+            data: {
+              [MOCK_SESSION_ID]: {
+                groupID: MOCK_GROUP_ID,
+                authorID: MOCK_AUTHOR_ID,
+                validUntil: DateTime.now().plus({ days: 1 }).toUnixInteger(),
+              },
+              ['s.0000000000000000']: {
+                groupID: MOCK_GROUP_ID,
+                authorID: MOCK_AUTHOR_ID,
+                validUntil: DateTime.now().plus({ days: 1 }).toUnixInteger(),
+              },
+            },
+          },
+        ],
+      });
+
+      const res = await app.inject(payloadView('read'));
+
+      const { getReadOnlyID } = await reqParams;
+      expect(getReadOnlyID?.get('padID')).toEqual(MOCK_PAD_ID);
+      expect(res.statusCode).toEqual(StatusCodes.OK);
+      expect(res.json()).toEqual({
+        padUrl: `${TEST_ENV.url}/p/${MOCK_PAD_READ_ONLY_ID}`,
+      });
+
+      expect(res.cookies.length).toEqual(1);
+      const { name, value, domain, path, expires } = res.cookies[0] as {
+        name: string;
+        value: string;
+        domain: string;
+        path: string;
+        expires: Date;
+      };
+      expect(name).toEqual('sessionID');
+      const sessions = value.split(',');
+      expect(sessions.length).toEqual(2);
+      expect(sessions.includes(MOCK_SESSION_ID)).toBeTruthy();
+      expect(sessions.includes('s.0000000000000000')).toBeTruthy();
+      expect(domain).toEqual('localhost');
+      expect(path).toEqual('/');
+      const expiration = DateTime.fromJSDate(expires);
+      // since we don't know the exact time the server created the cookie, verify against a range
+      expect(expiration > DateTime.now().plus({ days: 1 }).minus({ minutes: 1 })).toBeTruthy();
+      expect(expiration < DateTime.now().plus({ days: 1 }).plus({ minutes: 1 })).toBeTruthy();
+    });
+
+    it('deletes expired sessions', async () => {
+      const { app } = instance;
+      const reqParams = setUpApi({
+        getReadOnlyID: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { readOnlyID: MOCK_PAD_READ_ONLY_ID } },
+        ],
+        createAuthorIfNotExistsFor: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { authorID: MOCK_AUTHOR_ID } },
+        ],
+        createSession: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { sessionID: MOCK_SESSION_ID } },
+        ],
+        listSessionsOfAuthor: [
+          StatusCodes.OK,
+          {
+            code: 0,
+            message: 'ok',
+            data: {
+              [MOCK_SESSION_ID]: {
+                groupID: MOCK_GROUP_ID,
+                authorID: MOCK_AUTHOR_ID,
+                validUntil: DateTime.now().minus({ days: 1 }).toUnixInteger(),
+              },
+            },
+          },
+        ],
+        deleteSession: [StatusCodes.OK, { code: 0, message: 'ok', data: null }],
+      });
+
+      const res = await app.inject(payloadView('read'));
+
+      const { getReadOnlyID, deleteSession } = await reqParams;
+      expect(getReadOnlyID?.get('padID')).toEqual(MOCK_PAD_ID);
+      expect(res.statusCode).toEqual(StatusCodes.OK);
+      expect(res.json()).toEqual({
+        padUrl: `${TEST_ENV.url}/p/${MOCK_PAD_READ_ONLY_ID}`,
+      });
+
+      expect(res.cookies.length).toEqual(1);
+      const { name, value, domain, path, expires } = res.cookies[0] as {
+        name: string;
+        value: string;
+        domain: string;
+        path: string;
+        expires: Date;
+      };
+      expect(name).toEqual('sessionID');
+      expect(value).toEqual(MOCK_SESSION_ID);
+      expect(domain).toEqual('localhost');
+      expect(path).toEqual('/');
+      const expiration = DateTime.fromJSDate(expires);
+      // since we don't know the exact time the server created the cookie, verify against a range
+      expect(expiration > DateTime.now().plus({ days: 1 }).minus({ minutes: 1 })).toBeTruthy();
+      expect(expiration < DateTime.now().plus({ days: 1 }).plus({ minutes: 1 })).toBeTruthy();
+
+      expect(deleteSession?.get('sessionID')).toEqual(MOCK_SESSION_ID);
+    });
+
+    it('invalidates oldest sessions if the number of sessions exceeds MAX_SESSIONS_IN_COOKIES', async () => {
+      const { app } = instance;
+      const reqParams = setUpApi({
+        getReadOnlyID: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { readOnlyID: MOCK_PAD_READ_ONLY_ID } },
+        ],
+        createAuthorIfNotExistsFor: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { authorID: MOCK_AUTHOR_ID } },
+        ],
+        createSession: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { sessionID: MOCK_SESSION_ID } },
+        ],
+        listSessionsOfAuthor: [
+          StatusCodes.OK,
+          {
+            code: 0,
+            message: 'ok',
+            data: {
+              ...Object.fromEntries(
+                Array.from({ length: MAX_SESSIONS_IN_COOKIE }, (_, i) => [
+                  `s.${i.toString().padStart(16, '0')}`,
+                  {
+                    groupID: `g.${i.toString().padStart(16, '0')}`,
+                    authorID: MOCK_AUTHOR_ID,
+                    validUntil: DateTime.now().plus({ seconds: i }).toUnixInteger(),
+                  },
+                ]),
+              ),
+              // this emulates the newly created session
+              [MOCK_SESSION_ID]: {
+                groupID: MOCK_GROUP_ID,
+                authorID: MOCK_AUTHOR_ID,
+                validUntil: DateTime.now().plus({ days: 1 }).toUnixInteger(),
+              },
+            },
+          },
+        ],
+        deleteSession: [StatusCodes.OK, { code: 0, message: 'ok', data: null }],
+      });
+
+      const res = await app.inject(payloadView('read'));
+
+      const { getReadOnlyID, deleteSession } = await reqParams;
+      expect(getReadOnlyID?.get('padID')).toEqual(MOCK_PAD_ID);
+      expect(res.statusCode).toEqual(StatusCodes.OK);
+      expect(res.json()).toEqual({
+        padUrl: `${TEST_ENV.url}/p/${MOCK_PAD_READ_ONLY_ID}`,
+      });
+
+      expect(res.cookies.length).toEqual(1);
+      const { name, value, domain, path, expires } = res.cookies[0] as {
+        name: string;
+        value: string;
+        domain: string;
+        path: string;
+        expires: Date;
+      };
+      expect(name).toEqual('sessionID');
+      const sessions = value.split(',');
+      expect(sessions.length).toEqual(MAX_SESSIONS_IN_COOKIE);
+      // the first (oldest) session should not be in the cookie
+      Array.from(
+        { length: MAX_SESSIONS_IN_COOKIE - 1 },
+        (_, i) => `s.${(i + 1).toString().padStart(16, '0')}`,
+      ).forEach((s) => expect(sessions.includes(s)));
+      expect(sessions.includes(MOCK_SESSION_ID)).toBeTruthy();
+      expect(sessions.includes('s.0000000000000000')).toBeFalsy();
+      expect(domain).toEqual('localhost');
+      expect(path).toEqual('/');
+      const expiration = DateTime.fromJSDate(expires);
+      // since we don't know the exact time the server created the cookie, verify against a range
+      expect(expiration > DateTime.now().plus({ days: 1 }).minus({ minutes: 1 })).toBeTruthy();
+      expect(expiration < DateTime.now().plus({ days: 1 }).plus({ minutes: 1 })).toBeTruthy();
+      // the first (oldest) session should be invalidated
+      expect(deleteSession?.get('sessionID')).toEqual('s.0000000000000000');
     });
 
     it.each(MODES)('returns error if item is not found (%p)', async (mode) => {

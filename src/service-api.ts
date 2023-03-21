@@ -11,7 +11,7 @@ import {
   PermissionLevelCompare,
 } from '@graasp/sdk';
 
-import { ETHERPAD_API_VERSION } from './constants';
+import { ETHERPAD_API_VERSION, MAX_SESSIONS_IN_COOKIE, PLUGIN_NAME } from './constants';
 import { AccessForbiddenError, ItemMissingExtraError, ItemNotFoundError } from './errors';
 import { GraaspEtherpad } from './etherpad';
 import { createEtherpad, getEtherpadFromItem } from './schemas';
@@ -24,6 +24,7 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
     items: { taskManager: itemTaskManager },
     itemMemberships: { taskManager: itemMembershipTaskManager },
     taskRunner,
+    log,
   } = fastify;
 
   const { url: etherpadUrl, publicUrl, apiKey, cookieDomain } = validatePluginOptions(options);
@@ -93,7 +94,12 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
             return await taskRunner.runSingleSequence(createItem);
           } catch (error) {
             // create item failed, delete created pad
-            etherpad.deletePad({ padID: buildPadID({ groupID, padName }) });
+            const padID = buildPadID({ groupID, padName });
+            etherpad
+              .deletePad({ padID })
+              .catch((e) =>
+                log.error(`${PLUGIN_NAME}: failed to delete orphan etherpad ${padID}`, e),
+              );
             throw error;
           }
         },
@@ -179,11 +185,72 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
           const { sessionID } = await etherpad.createSession({
             authorID,
             groupID,
-            validUntil: expiration.toSeconds(),
+            validUntil: expiration.toUnixInteger(),
           });
 
-          // set cookie
-          reply.setCookie('sessionID', sessionID, {
+          // get available sessions for user
+          const sessions = (await etherpad.listSessionsOfAuthor({ authorID })) ?? {};
+
+          // split valid from expired cookies
+          const now = DateTime.now();
+          const { valid, expired } = Object.entries(sessions).reduce(
+            ({ valid, expired }, [id, { validUntil }]) => {
+              const isExpired = DateTime.fromSeconds(validUntil) <= now;
+              isExpired ? expired.add(id) : valid.add(id);
+              return { valid, expired };
+            },
+            {
+              valid: new Set<string>(),
+              expired: new Set<string>(),
+            },
+          );
+          // sanity check, add the new sessionID (should already be part of the set)
+          valid.add(sessionID);
+
+          // in practice, there is (probably) a limit of 1024B per cookie value
+          // https://chromestatus.com/feature/4946713618939904
+          // so we can only store up to limit / (size of sessionID string + ",")
+          // assuming that no other cookies are set on the etherpad domain
+          // to err on the cautious side, we invalidate the oldest cookies in this case
+          if (valid.size > MAX_SESSIONS_IN_COOKIE) {
+            const sortedRecent = Array.from(valid).sort((a, b) => {
+              // return inversed for most recent
+              const timeA = DateTime.fromSeconds(sessions[a].validUntil);
+              const timeB = DateTime.fromSeconds(sessions[b].validUntil);
+              if (timeA < timeB) {
+                return 1;
+              }
+              if (timeA > timeB) {
+                return -1;
+              }
+              return 0;
+            });
+
+            const toInvalidate = sortedRecent.slice(MAX_SESSIONS_IN_COOKIE);
+
+            // mutate valid and expired sets in place
+            toInvalidate.forEach((id) => {
+              valid.delete(id);
+              expired.add(id);
+            });
+          }
+
+          // delete expired cookies asynchronously in the background, accept failures by catching
+          expired.forEach((sessionID) => {
+            etherpad
+              .deleteSession({ sessionID })
+              .catch((e) =>
+                log.error(
+                  `${PLUGIN_NAME}: failed to delete etherpad session ${sessionID}`,
+                  sessions[sessionID],
+                  e,
+                ),
+              );
+          });
+
+          // set cookie with all valid cookies (users should be able to access multiple etherpads simultaneously)
+          const cookieValue = Array.from(valid).join(',');
+          reply.setCookie('sessionID', cookieValue, {
             domain: cookieDomain,
             path: '/',
             expires: expiration.toJSDate(),

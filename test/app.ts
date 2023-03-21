@@ -27,7 +27,7 @@ type Awaited<T> = T extends PromiseLike<infer U> ? U : T;
 export type BuildAppType = Awaited<ReturnType<typeof buildApp>>;
 
 export async function buildApp(args?: { options?: EtherpadPluginOptions }) {
-  const app = fastify();
+  const app = fastify({ logger: true });
 
   app.register(fastifyCookie);
 
