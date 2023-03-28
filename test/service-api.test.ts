@@ -2,7 +2,6 @@ import { StatusCodes } from 'http-status-codes';
 import { DateTime } from 'luxon';
 import nock from 'nock';
 
-import { AuthorSession } from '@graasp/etherpad-api';
 import {
   Actor,
   HttpMethod,
@@ -503,7 +502,7 @@ describe('Service API', () => {
             data: {
               // todo: fix types in etherpad-api
               // the server may return null as mapping
-              's.0000000000000000': null as unknown as AuthorSession,
+              's.0000000000000000': null,
             },
           },
         ],

@@ -95,13 +95,13 @@ export class GraaspEtherpad extends Etherpad {
   listSessionsOfGroup(
     qs: Group,
     throwOnEtherpadError?: boolean,
-  ): Promise<{ [sessionID: string]: AuthorSession }> {
+  ): Promise<{ [sessionID: string]: AuthorSession | null }> {
     return wrapErrors(super.listSessionsOfGroup(qs, throwOnEtherpadError));
   }
   listSessionsOfAuthor(
     qs: Author,
     throwOnEtherpadError?: boolean,
-  ): Promise<{ [sessionID: string]: AuthorSession }> {
+  ): Promise<{ [sessionID: string]: AuthorSession | null }> {
     return wrapErrors(super.listSessionsOfAuthor(qs, throwOnEtherpadError));
   }
   getText(qs: PadOptionalRev, throwOnEtherpadError?: boolean): Promise<Pick<PadText, 'text'>> {

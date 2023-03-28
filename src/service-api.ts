@@ -3,6 +3,7 @@ import { v4 } from 'uuid';
 
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 
+import { AuthorSession } from '@graasp/etherpad-api';
 import {
   EtherpadItemExtra,
   Item,
@@ -222,9 +223,10 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
           // to err on the cautious side, we invalidate the oldest cookies in this case
           if (valid.size > MAX_SESSIONS_IN_COOKIE) {
             const sortedRecent = Array.from(valid).sort((a, b) => {
+              // we are guaranteed that a, b index valid sessions from above
+              const timeA = DateTime.fromSeconds((sessions[a] as AuthorSession).validUntil);
+              const timeB = DateTime.fromSeconds((sessions[b] as AuthorSession).validUntil);
               // return inversed for most recent
-              const timeA = DateTime.fromSeconds(sessions[a].validUntil);
-              const timeB = DateTime.fromSeconds(sessions[b].validUntil);
               if (timeA < timeB) {
                 return 1;
               }

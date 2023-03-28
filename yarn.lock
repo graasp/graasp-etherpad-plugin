@@ -1122,9 +1122,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@graasp/etherpad-api@github:graasp/etherpad-api":
-  version: 2.0.0
-  resolution: "@graasp/etherpad-api@https://github.com/graasp/etherpad-api.git#commit=6b7f284e447ec3cfac387c7c0bf151a89f630fd7"
+"@graasp/etherpad-api@npm:2.0.1":
+  version: 2.0.1
+  resolution: "@graasp/etherpad-api@npm:2.0.1"
   dependencies:
     "@types/http-errors": ^1.6.1
     "@types/request-promise-native": ^1.0.15
@@ -1132,7 +1132,7 @@ __metadata:
     http-errors: ^1.7.1
     request: ^2.88.0
     request-promise-native: ^1.0.5
-  checksum: 34085327c76e0129a7b250426e4b3ef9fe9a3fbd1e9268e3cd623ea09f9df2ca96d8ff00fc37bdfcbb2af19703d6b3a751b66ec102dc4b6a9c987d3378d9189a
+  checksum: ff9e45325b675195141220490a59091e9fc1f5f71f81ec1aa2d2bd3ecc9b89886c7ba3ad0dbd02c3210dcec30f80cf4979c8f24eb9f71222e73ce49923c43719
   languageName: node
   linkType: hard
 
@@ -1143,7 +1143,7 @@ __metadata:
     "@commitlint/cli": 17.4.4
     "@commitlint/config-conventional": 17.4.4
     "@fastify/cookie": 6.0.0
-    "@graasp/etherpad-api": "github:graasp/etherpad-api"
+    "@graasp/etherpad-api": 2.0.1
     "@graasp/sdk": 0.9.3
     "@trivago/prettier-plugin-sort-imports": 4.1.1
     "@types/jest": 29.5.0
