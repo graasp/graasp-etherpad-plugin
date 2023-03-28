@@ -2,6 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import { DateTime } from 'luxon';
 import nock from 'nock';
 
+import { AuthorSession } from '@graasp/etherpad-api';
 import {
   Actor,
   HttpMethod,
@@ -473,6 +474,68 @@ describe('Service API', () => {
       expect(expiration > DateTime.now().plus({ days: 1 }).minus({ minutes: 1 })).toBeTruthy();
       expect(expiration < DateTime.now().plus({ days: 1 }).plus({ minutes: 1 })).toBeTruthy();
       // the first (oldest) session should be invalidated
+      expect(deleteSession?.get('sessionID')).toEqual('s.0000000000000000');
+    });
+
+    /**
+     * This is a regression test based on a real case in the production DB
+     */
+    it('handles malformed sessions in database', async () => {
+      const { app } = instance;
+      const reqParams = setUpApi({
+        getReadOnlyID: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { readOnlyID: MOCK_PAD_READ_ONLY_ID } },
+        ],
+        createAuthorIfNotExistsFor: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { authorID: MOCK_AUTHOR_ID } },
+        ],
+        createSession: [
+          StatusCodes.OK,
+          { code: 0, message: 'ok', data: { sessionID: MOCK_SESSION_ID } },
+        ],
+        listSessionsOfAuthor: [
+          StatusCodes.OK,
+          {
+            code: 0,
+            message: 'ok',
+            data: {
+              // todo: fix types in etherpad-api
+              // the server may return null as mapping
+              's.0000000000000000': null as unknown as AuthorSession,
+            },
+          },
+        ],
+        deleteSession: [StatusCodes.OK, { code: 0, message: 'ok', data: null }],
+      });
+
+      const res = await app.inject(payloadView('read'));
+
+      const { getReadOnlyID, deleteSession } = await reqParams;
+      expect(getReadOnlyID?.get('padID')).toEqual(MOCK_PAD_ID);
+      expect(res.statusCode).toEqual(StatusCodes.OK);
+      expect(res.json()).toEqual({
+        padUrl: `${TEST_ENV.url}/p/${MOCK_PAD_READ_ONLY_ID}`,
+      });
+
+      expect(res.cookies.length).toEqual(1);
+      const { name, value, domain, path, expires } = res.cookies[0] as {
+        name: string;
+        value: string;
+        domain: string;
+        path: string;
+        expires: Date;
+      };
+      expect(name).toEqual('sessionID');
+      expect(value).toEqual(MOCK_SESSION_ID);
+      expect(domain).toEqual('localhost');
+      expect(path).toEqual('/');
+      const expiration = DateTime.fromJSDate(expires);
+      // since we don't know the exact time the server created the cookie, verify against a range
+      expect(expiration > DateTime.now().plus({ days: 1 }).minus({ minutes: 1 })).toBeTruthy();
+      expect(expiration < DateTime.now().plus({ days: 1 }).plus({ minutes: 1 })).toBeTruthy();
+
       expect(deleteSession?.get('sessionID')).toEqual('s.0000000000000000');
     });
 
