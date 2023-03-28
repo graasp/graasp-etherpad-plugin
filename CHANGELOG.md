@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/graasp/graasp-plugin-etherpad/compare/v1.0.0...v1.0.1) (2023-03-28)
+
+
+### Bug Fixes
+
+* handle invalid stored sessions ([#18](https://github.com/graasp/graasp-plugin-etherpad/issues/18)) ([fecd767](https://github.com/graasp/graasp-plugin-etherpad/commit/fecd767651fa7b349062fcef23fe5fd7fe7ca5f1))
+
 ## 1.0.0 (2023-03-21)
 
 
