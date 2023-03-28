@@ -191,12 +191,20 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
           // get available sessions for user
           const sessions = (await etherpad.listSessionsOfAuthor({ authorID })) ?? {};
 
-          // split valid from expired cookies
+          // split valid from expired sessions
           const now = DateTime.now();
           const { valid, expired } = Object.entries(sessions).reduce(
-            ({ valid, expired }, [id, { validUntil }]) => {
-              const isExpired = DateTime.fromSeconds(validUntil) <= now;
-              isExpired ? expired.add(id) : valid.add(id);
+            ({ valid, expired }, [id, session]) => {
+              const validUntil = session?.validUntil;
+              if (!validUntil) {
+                // edge case: some old sessions may be null, or not have an expiration set
+                // delete malformed session anyway
+                expired.add(id);
+              } else {
+                // normal case: check if session is expired
+                const isExpired = DateTime.fromSeconds(validUntil) <= now;
+                isExpired ? expired.add(id) : valid.add(id);
+              }
               return { valid, expired };
             },
             {
