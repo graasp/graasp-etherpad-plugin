@@ -3,6 +3,7 @@ import { v4 } from 'uuid';
 
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 
+import { AuthorSession } from '@graasp/etherpad-api';
 import {
   EtherpadItemExtra,
   Item,
@@ -191,12 +192,20 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
           // get available sessions for user
           const sessions = (await etherpad.listSessionsOfAuthor({ authorID })) ?? {};
 
-          // split valid from expired cookies
+          // split valid from expired sessions
           const now = DateTime.now();
           const { valid, expired } = Object.entries(sessions).reduce(
-            ({ valid, expired }, [id, { validUntil }]) => {
-              const isExpired = DateTime.fromSeconds(validUntil) <= now;
-              isExpired ? expired.add(id) : valid.add(id);
+            ({ valid, expired }, [id, session]) => {
+              const validUntil = session?.validUntil;
+              if (!validUntil) {
+                // edge case: some old sessions may be null, or not have an expiration set
+                // delete malformed session anyway
+                expired.add(id);
+              } else {
+                // normal case: check if session is expired
+                const isExpired = DateTime.fromSeconds(validUntil) <= now;
+                isExpired ? expired.add(id) : valid.add(id);
+              }
               return { valid, expired };
             },
             {
@@ -214,9 +223,10 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
           // to err on the cautious side, we invalidate the oldest cookies in this case
           if (valid.size > MAX_SESSIONS_IN_COOKIE) {
             const sortedRecent = Array.from(valid).sort((a, b) => {
+              // we are guaranteed that a, b index valid sessions from above
+              const timeA = DateTime.fromSeconds((sessions[a] as AuthorSession).validUntil);
+              const timeB = DateTime.fromSeconds((sessions[b] as AuthorSession).validUntil);
               // return inversed for most recent
-              const timeA = DateTime.fromSeconds(sessions[a].validUntil);
-              const timeB = DateTime.fromSeconds(sessions[b].validUntil);
               if (timeA < timeB) {
                 return 1;
               }
