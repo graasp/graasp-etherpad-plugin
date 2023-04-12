@@ -37,6 +37,9 @@ const plugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, option
     apiVersion: ETHERPAD_API_VERSION,
   });
 
+  // decorate the etherpad service for external consumption
+  fastify.decorate('etherpad', etherpad);
+
   /**
    * Helper method to create a pad
    */
