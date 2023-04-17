@@ -6,6 +6,7 @@ import Etherpad, { AuthorSession } from '@graasp/etherpad-api';
 import {
   Actor,
   EtherpadItemExtra,
+  EtherpadService,
   Item,
   ItemMembershipTaskManager,
   ItemTaskManager,
@@ -28,7 +29,7 @@ import {
  * Handles interactions between items and the remote Etherpad service
  * Exposes API to manage etherpad items inside Graasp
  */
-export class EtherpadItemService {
+export class EtherpadItemService implements EtherpadService {
   private readonly etherpad: Etherpad;
   private readonly padNameFactory: () => string;
   private readonly publicUrl: string;
@@ -107,7 +108,7 @@ export class EtherpadItemService {
 
     const createItem = this.itemTaskManager.createCreateTaskSequence(member, partialItem, parentId);
     try {
-      return await this.taskRunner.runSingleSequence(createItem);
+      return (await this.taskRunner.runSingleSequence(createItem)) as Item<EtherpadItemExtra>;
     } catch (error) {
       // create item failed, delete created pad
       const padID = EtherpadItemService.buildPadID({ groupID, padName });
