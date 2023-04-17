@@ -30,7 +30,7 @@ import {
  * Exposes API to manage etherpad items inside Graasp
  */
 export class EtherpadItemService implements EtherpadService {
-  private readonly etherpad: Etherpad;
+  public readonly api: Etherpad;
   private readonly padNameFactory: () => string;
   private readonly publicUrl: string;
   private readonly cookieDomain: string;
@@ -49,7 +49,7 @@ export class EtherpadItemService implements EtherpadService {
     taskRunner: TaskRunner<Actor>,
     log: FastifyLoggerInstance,
   ) {
-    this.etherpad = etherpad;
+    this.api = etherpad;
     this.padNameFactory = padNameFactory;
     this.publicUrl = publicUrl;
     this.cookieDomain = cookieDomain;
@@ -69,24 +69,24 @@ export class EtherpadItemService implements EtherpadService {
     const padName = this.padNameFactory();
 
     // map pad to a group containing only itself
-    const { groupID } = await this.etherpad.createGroupIfNotExistsFor({
+    const { groupID } = await this.api.createGroupIfNotExistsFor({
       groupMapper: `${padName}`,
     });
 
     switch (options.action) {
       case 'create':
-        await this.etherpad.createGroupPad({ groupID, padName });
+        await this.api.createGroupPad({ groupID, padName });
         if (options.initHtml) {
-          const padID = EtherpadItemService.buildPadID({ groupID, padName });
+          const padID = this.buildPadID({ groupID, padName });
           const { initHtml: html } = options;
-          await this.etherpad.setHTML({ padID, html });
+          await this.api.setHTML({ padID, html });
         }
         break;
       case 'copy':
         const { sourceID } = options;
-        await this.etherpad.copyPad({
+        await this.api.copyPad({
           sourceID,
-          destinationID: EtherpadItemService.buildPadID({ groupID, padName }),
+          destinationID: this.buildPadID({ groupID, padName }),
         });
         break;
     }
@@ -103,7 +103,7 @@ export class EtherpadItemService implements EtherpadService {
     const partialItem = {
       name,
       type: ItemType.ETHERPAD,
-      extra: EtherpadItemService.buildEtherpadExtra({ groupID, padName }),
+      extra: this.buildEtherpadExtra({ groupID, padName }),
     };
 
     const createItem = this.itemTaskManager.createCreateTaskSequence(member, partialItem, parentId);
@@ -111,8 +111,8 @@ export class EtherpadItemService implements EtherpadService {
       return (await this.taskRunner.runSingleSequence(createItem)) as Item<EtherpadItemExtra>;
     } catch (error) {
       // create item failed, delete created pad
-      const padID = EtherpadItemService.buildPadID({ groupID, padName });
-      this.etherpad
+      const padID = this.buildPadID({ groupID, padName });
+      this.api
         .deletePad({ padID })
         .catch((e) =>
           this.log.error(`${PLUGIN_NAME}: failed to delete orphan etherpad ${padID}`, e),
@@ -165,29 +165,29 @@ export class EtherpadItemService implements EtherpadService {
     let padUrl;
     switch (checkedMode) {
       case 'read': {
-        const readOnlyResult = await this.etherpad.getReadOnlyID({ padID });
+        const readOnlyResult = await this.api.getReadOnlyID({ padID });
         if (!readOnlyResult) {
           throw new EtherpadServerError(`No readOnlyID returned for padID ${padID}`);
         }
         const { readOnlyID } = readOnlyResult;
-        padUrl = EtherpadItemService.buildPadPath({ padID: readOnlyID }, this.publicUrl);
+        padUrl = this.buildPadPath({ padID: readOnlyID }, this.publicUrl);
         break;
       }
       case 'write': {
-        padUrl = EtherpadItemService.buildPadPath({ padID }, this.publicUrl);
+        padUrl = this.buildPadPath({ padID }, this.publicUrl);
         break;
       }
     }
 
     // map user to etherpad author
-    const { authorID } = await this.etherpad.createAuthorIfNotExistsFor({
+    const { authorID } = await this.api.createAuthorIfNotExistsFor({
       authorMapper: member.id,
       name: member.name,
     });
 
     // start session for user on the group
     const expiration = DateTime.now().plus({ days: 1 });
-    const sessionResult = await this.etherpad.createSession({
+    const sessionResult = await this.api.createSession({
       authorID,
       groupID,
       validUntil: expiration.toUnixInteger(),
@@ -200,7 +200,7 @@ export class EtherpadItemService implements EtherpadService {
     const { sessionID } = sessionResult;
 
     // get available sessions for user
-    const sessions = (await this.etherpad.listSessionsOfAuthor({ authorID })) ?? {};
+    const sessions = (await this.api.listSessionsOfAuthor({ authorID })) ?? {};
 
     // split valid from expired sessions
     const now = DateTime.now();
@@ -257,7 +257,7 @@ export class EtherpadItemService implements EtherpadService {
 
     // delete expired cookies asynchronously in the background, accept failures by catching
     expired.forEach((sessionID) => {
-      this.etherpad
+      this.api
         .deleteSession({ sessionID })
         .catch((e) =>
           this.log.error(
@@ -299,7 +299,7 @@ export class EtherpadItemService implements EtherpadService {
       );
     }
 
-    await this.etherpad.deletePad({ padID });
+    await this.api.deletePad({ padID });
   }
 
   /**
@@ -323,7 +323,7 @@ export class EtherpadItemService implements EtherpadService {
 
     const { groupID, padName } = await this.createPad({ action: 'copy', sourceID: padID });
     // assign pad copy to new item's extra
-    item.extra = EtherpadItemService.buildEtherpadExtra({ groupID, padName });
+    item.extra = this.buildEtherpadExtra({ groupID, padName });
   }
 
   /**
@@ -333,6 +333,7 @@ export class EtherpadItemService implements EtherpadService {
   static buildPadID({ groupID, padName }: { groupID: string; padName: string }) {
     return `${groupID}$${padName}`;
   }
+  buildPadID = EtherpadItemService.buildPadID;
 
   /**
    * Builds an Etherpad path to the given pad
@@ -343,6 +344,7 @@ export class EtherpadItemService implements EtherpadService {
     const path = `/p/${padID}`;
     return baseUrl ? new URL(path, baseUrl).toString() : path;
   }
+  buildPadPath = EtherpadItemService.buildPadPath;
 
   /**
    * Builds an Etherpad extra for Item
@@ -361,4 +363,5 @@ export class EtherpadItemService implements EtherpadService {
       },
     };
   }
+  buildEtherpadExtra = EtherpadItemService.buildEtherpadExtra;
 }
