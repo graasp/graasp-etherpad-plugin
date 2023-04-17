@@ -61,7 +61,9 @@ export class EtherpadItemService {
   /**
    * Creates a new standalone pad in Etherpad service
    */
-  private async createPad(options: { action: 'create' } | { action: 'copy'; sourceID: string }) {
+  private async createPad(
+    options: { action: 'create'; initHtml?: string } | { action: 'copy'; sourceID: string },
+  ) {
     // new pad name
     const padName = this.padNameFactory();
 
@@ -73,6 +75,11 @@ export class EtherpadItemService {
     switch (options.action) {
       case 'create':
         await this.etherpad.createGroupPad({ groupID, padName });
+        if (options.initHtml) {
+          const padID = EtherpadItemService.buildPadID({ groupID, padName });
+          const { initHtml: html } = options;
+          await this.etherpad.setHTML({ padID, html });
+        }
         break;
       case 'copy':
         const { sourceID } = options;
