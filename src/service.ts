@@ -97,8 +97,13 @@ export class EtherpadItemService implements EtherpadService {
   /**
    * Creates a new Etherpad item linked to a pad in the service
    */
-  public async createEtherpadItem(name: string, member: Member, parentId?: string) {
-    const { groupID, padName } = await this.createPad({ action: 'create' });
+  public async createEtherpadItem(
+    name: string,
+    member: Member,
+    parentId?: string,
+    initHtml?: string,
+  ) {
+    const { groupID, padName } = await this.createPad({ action: 'create', initHtml });
 
     const partialItem = {
       name,
