@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/graasp/graasp-plugin-etherpad/compare/v1.0.1...v1.1.0) (2023-04-19)
+
+
+### Features
+
+* decorate etherpad service ([#23](https://github.com/graasp/graasp-plugin-etherpad/issues/23)) ([e1873a0](https://github.com/graasp/graasp-plugin-etherpad/commit/e1873a0b94baae9c940e943690cda819cb8c84e5))
+
 ## [1.0.1](https://github.com/graasp/graasp-plugin-etherpad/compare/v1.0.0...v1.0.1) (2023-03-28)
 
 

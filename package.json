@@ -1,6 +1,6 @@
 {
   "name": "@graasp/plugin-etherpad",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "An etherpad plugin for Graasp",
   "homepage": "https://github.com/graasp/graasp-plugin-etherpad#readme",
   "bugs": {
