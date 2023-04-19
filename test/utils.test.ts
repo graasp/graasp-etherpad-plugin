@@ -1,5 +1,5 @@
 import { EtherpadPluginOptions } from '../src';
-import { buildEtherpadExtra, buildPadID, buildPadPath, validatePluginOptions } from '../src/utils';
+import { validatePluginOptions } from '../src/utils';
 import { TEST_ENV } from './config';
 
 describe('Utils', () => {
@@ -39,33 +39,6 @@ describe('Utils', () => {
       expect(() => validatePluginOptions({ ...correctOptions, apiKey: 'invalidKey' })).toThrowError(
         'Etherpad API key environment variable format must be /^[a-fd]{64}$/',
       );
-    });
-  });
-
-  it('builds correct pad ID', () => {
-    expect(buildPadID({ groupID: 'g.s8oes9dhwrvt0zif', padName: 'test' })).toEqual(
-      'g.s8oes9dhwrvt0zif$test',
-    );
-  });
-
-  it('builds correct relative pad path', () => {
-    expect(buildPadPath({ padID: 'g.s8oes9dhwrvt0zif$test' })).toEqual(
-      '/p/g.s8oes9dhwrvt0zif$test',
-    );
-  });
-
-  it('builds correct absolute pad url', () => {
-    expect(buildPadPath({ padID: 'g.s8oes9dhwrvt0zif$test' }, 'http://localhost:9001')).toEqual(
-      'http://localhost:9001/p/g.s8oes9dhwrvt0zif$test',
-    );
-  });
-
-  it('builds correct etherpad item extra', () => {
-    expect(buildEtherpadExtra({ groupID: 'g.s8oes9dhwrvt0zif', padName: 'test' })).toEqual({
-      etherpad: {
-        padID: 'g.s8oes9dhwrvt0zif$test',
-        groupID: 'g.s8oes9dhwrvt0zif',
-      },
     });
   });
 });

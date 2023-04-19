@@ -1,27 +1,17 @@
 import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 
-import { EtherpadItemExtra, Item } from '@graasp/sdk';
-
 import { ETHERPAD_API_VERSION, PLUGIN_NAME } from './constants';
-import { ItemMissingExtraError, ItemNotFoundError } from './errors';
 import { GraaspEtherpad } from './etherpad';
-import { getEtherpadFromItem } from './schemas';
 import { EtherpadPluginOptions } from './types';
-import { buildPadPath, validatePluginOptions } from './utils';
+import { validatePluginOptions } from './utils';
 
 const publicPlugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, options) => {
-  const { public: publicPlugin, taskRunner } = fastify;
-
-  const { url: etherpadUrl, publicUrl, apiKey } = validatePluginOptions(options);
+  const { public: publicPlugin } = fastify;
 
   if (!publicPlugin) {
     throw new Error(`${PLUGIN_NAME}: Public plugin was not registered!`);
   }
-
-  const {
-    graaspActor,
-    items: { taskManager: itemTaskManager },
-  } = publicPlugin;
+  const { url: etherpadUrl, publicUrl, apiKey, cookieDomain } = validatePluginOptions(options);
 
   // connect to etherpad server
   const etherpad = new GraaspEtherpad({
@@ -30,41 +20,11 @@ const publicPlugin: FastifyPluginAsync<EtherpadPluginOptions> = async (fastify, 
     apiVersion: ETHERPAD_API_VERSION,
   });
 
+  // hack: only decorate the api instance (for export)
+  fastify.decorate('etherpad', { api: etherpad });
+
   // create a route prefix for etherpad
-  await fastify.register(
-    async (fastify: FastifyInstance) => {
-      /**
-       * Etherpad read-only mode
-       * Access should be granted if and only if the item is public
-       */
-      fastify.get<{ Params: { itemId: string } }>(
-        '/read/:itemId',
-        { schema: getEtherpadFromItem },
-        async (request, reply) => {
-          const {
-            params: { itemId },
-          } = request;
-
-          const getItem = itemTaskManager.createGetPublicItemTask(graaspActor, { itemId });
-          const item = (await taskRunner.runSingle(getItem)) as Item<Partial<EtherpadItemExtra>>;
-
-          if (!item) {
-            throw new ItemNotFoundError(itemId);
-          }
-
-          if (!item.extra?.etherpad) {
-            throw new ItemMissingExtraError(item);
-          }
-
-          const { padID } = item.extra.etherpad;
-
-          const { readOnlyID } = await etherpad.getReadOnlyID({ padID });
-          return { padUrl: buildPadPath({ padID: readOnlyID }, publicUrl) };
-        },
-      );
-    },
-    { prefix: 'etherpad' },
-  );
+  await fastify.register(async (fastify: FastifyInstance) => {}, { prefix: 'etherpad' });
 };
 
 export default publicPlugin;

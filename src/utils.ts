@@ -1,5 +1,3 @@
-import { EtherpadItemExtra } from '@graasp/sdk';
-
 import { EtherpadPluginOptions } from './types';
 
 export function validatePluginOptions(options: EtherpadPluginOptions) {
@@ -29,41 +27,5 @@ export function validatePluginOptions(options: EtherpadPluginOptions) {
     ...options,
     publicUrl,
     cookieDomain,
-  };
-}
-
-/**
- * Builds a group pad ID
- * https://etherpad.org/doc/v1.8.18/#index_pad
- */
-export function buildPadID({ groupID, padName }: { groupID: string; padName: string }) {
-  return `${groupID}$${padName}`;
-}
-
-/**
- * Builds an Etherpad path to the given pad
- * https://etherpad.org/doc/v1.8.18/#index_embed-parameters
- * @param baseUrl if specified, will return the absolute url to the pad, otherwise the relative path will be given
- */
-export function buildPadPath({ padID }: { padID: string }, baseUrl?: string) {
-  const path = `/p/${padID}`;
-  return baseUrl ? new URL(path, baseUrl).toString() : path;
-}
-
-/**
- * Builds an Etherpad extra for Item
- */
-export function buildEtherpadExtra({
-  groupID,
-  padName,
-}: {
-  groupID: string;
-  padName: string;
-}): EtherpadItemExtra {
-  return {
-    etherpad: {
-      padID: buildPadID({ groupID, padName }),
-      groupID,
-    },
   };
 }
